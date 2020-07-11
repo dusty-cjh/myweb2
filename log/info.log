@@ -1,0 +1,28 @@
+Watching for file changes with StatReloader
+E:\proj-django\myweb2\post\apis.py changed, reloading.
+Watching for file changes with StatReloader
+E:\proj-django\myweb2\post\apis.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 11396
+summary visit log
+"GET /api/summary/ HTTP/1.1" 200 291
+"GET /media/icon/favicon.ico HTTP/1.1" 200 67646
+"GET /api/doc HTTP/1.1" 301 0
+"GET /api/doc/ HTTP/1.1" 200 58081
+"GET /static/rest_framework/docs/css/base.css HTTP/1.1" 200 6147
+"GET /static/rest_framework/css/bootstrap-theme.min.css HTTP/1.1" 200 23411
+"GET /static/rest_framework/css/font-awesome-4.0.3.css HTTP/1.1" 200 21658
+"GET /static/rest_framework/docs/css/jquery.json-view.min.css HTTP/1.1" 200 1307
+"GET /static/rest_framework/css/bootstrap.min.css HTTP/1.1" 200 121457
+"GET /static/rest_framework/js/coreapi-0.1.1.js HTTP/1.1" 200 157600
+"GET /api/doc/schema.js HTTP/1.1" 200 2420
+"GET /static/rest_framework/docs/js/api.js HTTP/1.1" 200 10539
+"GET /static/rest_framework/js/bootstrap.min.js HTTP/1.1" 200 39680
+"GET /static/rest_framework/docs/js/jquery.json-view.min.js HTTP/1.1" 200 2700
+"GET /static/rest_framework/js/jquery-3.4.1.min.js HTTP/1.1" 200 88145
+"GET /static/rest_framework/fonts/fontawesome-webfont.woff?v=4.0.3 HTTP/1.1" 200 44432
+summary visit log
+"GET /api/summary/?limit=10&offset=0 HTTP/1.1" 200 291
+E:\proj-django\myweb2\myweb2\settings.py changed, reloading.
+summary visit log
+summary visit log
