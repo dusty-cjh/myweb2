@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}
+商品提交页
+{% endblock %}
+
+
+{% block main %}
+<div class="container" id="app">
+  <div v-if="!submited">
+    <p class="py-3 text-primary">您的二手交易信息，将在各大校内群获得曝光</p>
+    <h4 class="pb-4" id="head">商品信息</h4>
+
+  {#  商品图片#}
+    <div class="input-group mb-3">
+      <div class="row">
+        <div class="col-6 p-1" v-for="preview in previews">
+          <a href="#" @click="preview_image(preview)"><img :src="preview" :alt="preview" width="100%"></a>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <button class="btn btn-primary form-control" type="button" href="#" @click="upload_image()">选择图片（必填）</button>
+    </div>
+
+    <div class="input-group mb-3">
+      <input type="text" v-model="title" placeholder="商品名称 ..." class="form-control">
+    </div>
+
+  {#描述#}
+    <div class="input-group mb-3">
+      <input type="number" v-model="price" placeholder="价格（必填） ..." class="form-control">
+    </div>
+    <div class="input-group mb-3">
+      <textarea v-model="desc" rows="5" placeholder="（选填）商品描述 ..." class="form-control" hidden></textarea>
+    </div>
+
+  {#个人信息#}
+    <div class="input-group mb-3">
+      <input type="text" v-model="name" placeholder="姓名（选填） ..." class="form-control" hidden>
+    </div>
+    <div class="input-group mb-3">
+      <input type="text" v-model="addr" placeholder="地址（选填） ..." class="form-control" hidden>
+    </div>
+    <div class="input-group mb-3">
+      <input type="text" v-model="contact" placeholder="QQ号 ..." class="form-control">
+    </div>
+    <button class="btn btn-danger form-control" @click="submit()">立即发布</button>
+
+  </div>
+  <div v-else>
+    <h3 class="pt-3">发布成功！</h3>
+    <p>管理员审核后（24h内）将发布在燕大二手群内！</p>
+    <hr>
+    <button class="btn btn-success form-control mb-3" href="#head" @click="submited=false;">继续发布</button>
+    <button class="btn btn-secondary form-control" href="#" @click="wx.closeWindow()">关闭窗口</button>
+  </div>
+
+    <br>
+    <hr>
+    <h4 class="py-4">燕大二手群</h4>
+    <img src="/media/django_ckeditor_5/image_JGbk0xp.png" width="100%" alt="">
+
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+  <script>
+  //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+
+    //  share in QQ and wechat
+    wx.updateAppMessageShareData({
+      title: '燕大二手交易', // 分享标题
+      desc: '统一收集并发布二手物品信息，官方流量加持！',
+      link: window.location.href,
+      imgUrl: window.location.origin+'/static/resource/6139120018140e9c0b617990a298a5269322536af9b3f31ac1b04fe0e823714e.png',
+      success: function () {
+        // 设置成功
+      },
+    });
+    // share in Q-zone or pyq
+    wx.updateTimelineShareData({
+      title: '燕大二手交易',
+      link: window.location.href,
+      imgUrl: window.location.origin+'/static/resource/6139120018140e9c0b617990a298a5269322536af9b3f31ac1b04fe0e823714e.png',
+      success: function () {
+        // 设置成功
+      }
+    });
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+
+
+  var vm = new Vue({
+      el: '#app',
+      data: {
+          title: "",
+          previews: [],
+          price: null,
+          desc: "",
+          name: "",
+          addr: "",
+          contact: "",
+          submited: false,
+          wx: wx,
+      },
+      delimiters: ['[[', ']]'],
+      methods: {
+          upload_image: function() {
+              wx.chooseImage({
+                count: 9, // 默认9
+                sizeType: ['compressed'], // 可以指定是原图还是压缩图，默认二者都有
+                sourceType: ['album', 'camera'], // 可以指定来源是相册还是相机，默认二者都有
+                success: function (res) {
+                    vm.previews = res.localIds
+                }
+              });
+          },
+          preview_image: function(url) {
+              wx.previewImage({
+                current: url, // 当前显示图片的http链接
+                urls: vm.previews, // 需要预览的图片http链接列表
+              });
+          },
+          submit: function() {
+              if(vm.previews.length === 0) {
+                  alert("请先选择预览图");
+                  return
+              }else if(vm.price == null || vm.price == "") {
+                  alert("商品价格未填写")
+                  return
+              }else if(vm.contact == "" || vm.contact == null) {
+                  alert("请填写您的联系方式")
+                  return
+              }
+
+              //  upload image
+              var previews = String()
+              var count = 0
+              for(let i=0; i < vm.previews.length; ++i) {
+                  wx.uploadImage({
+                    localId: vm.previews[i], // 需要上传的图片的本地ID，由chooseImage接口获得
+                    isShowProgressTips: 1, // 默认为1，显示进度提示
+                    success: function (res) {
+                        previews += res.serverId + ";"
+                        count += 1
+                        if(vm.previews.length === count) {
+                            let data = {
+                                title: vm.title,
+                                previews: previews,
+                                price: vm.price,
+                                desc: vm.desc,
+                                name: vm.name,
+                                addr: vm.addr,
+                                contact: vm.contact,
+                            }
+                            vm.post_data(data)
+                        }
+                    },
+                  });
+              }
+
+
+          },
+          post_data: function(data) {
+              // post data
+              axios.post('{% url "collect:present" %}', data, {headers: {'X-CSRFToken': csrf_token}})
+              .then(res => {
+                  vm.title = ""
+                  vm.previews = []
+                  vm.price = null
+                  vm.desc = ""
+                  vm.submited = true
+              })
+              .catch(err => {
+                  console.log("发布失败！", err)
+              })
+          },
+      },
+      mounted() {
+
+      },
+  })
+  </script>
+{% endblock %}

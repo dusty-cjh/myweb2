@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}{% endblock %}
+
+
+{% block main %}
+<div class="container" id="app">
+  <br>
+
+  <div>
+    <h4>{{ version.version }}组队学习报名</h4>
+    <hr>
+
+    <div class="form-group">
+      <label for="id_name">姓名</label>
+      <input type="text" class="form-control" id="id_name" v-model="name">
+    </div>
+
+    <label for="sex" class="">性别</label>
+    <br>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="sex" id="id_sex_male" v-model="sex" value="1" checked>
+      <label class="form-check-label" for="id_sex_male">男</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="sex" id="id_sex_female" v-model="sex" value="0">
+      <label class="form-check-label" for="id_sex_female">女</label>
+    </div>
+
+    <div class="form-group">
+      <label for="id_age">年龄</label>
+      <input type="number" class="form-control" id="id_age" v-model="age">
+    </div>
+    <div class="form-group">
+      <label for="id_school">专业班级</label>
+      <input type="text" class="form-control" id="id_school" v-model="school">
+    </div>
+
+    <div class="form-group">
+      <label for="id_phone">手机</label>
+      <input type="number" class="form-control" id="id_phone" v-model="phone">
+    </div>
+
+    <div class="form-group">
+      <label for="id_ps">备注</label>
+      <textarea class="form-control" id="id_ps" rows="3" v-model="ps" placeholder="任何你想说的话 ..."></textarea>
+    </div>
+
+    <p><strong>提交将支付{{ version.fee }}元保证金</strong><small class="text-muted">&nbsp;在学习完所有内容后退还</small></p>
+    <p class=""></p>
+
+    <button type="submit" class="btn btn-success form-control" @click="submit">
+      <div v-if="created" class="spinner-border spinner-border-sm text-light" role="status">
+        <span class="sr-only"></span>
+      </div>
+      报名
+    </button>
+
+    <br><br><br><br><br>
+    <p><small class="text-muted">本页面由蛮三提供技术支持</small></p>
+  </div>
+
+
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+<script>
+  var csrf_token = "{{ csrf_token }}";
+  var collect_url = "{% url 'collect-study-list' %}";
+  var source_url = "{% url 'collect:signup-source' version.version %}";
+  var vm = new Vue({
+      el: "#app",
+      data: {
+          name: '',
+          age: null,
+          sex: 1,
+          school: '',
+          phone: '',
+          ps: '',
+          created: false,
+      },
+      delimiters: ['[[', ']]'],
+      methods: {
+          submit: function() {
+              let data = {
+                  name: this.name,
+                  age: this.age,
+                  sex: this.sex,
+                  school: this.school,
+                  phone: this.phone,
+                  ps: this.ps,
+                  csrf_token: csrf_token,
+                  version: '{{ version.version }}',
+              };
+              axios.post(collect_url, data, {headers: {'X-CSRFToken': csrf_token}})
+                  .then(res => {
+                      console.log('报名成功！');
+                      this.wechat_pay(res.data);
+                      this.created = true;
+                  })
+                  .catch(err => {
+                      console.log('catch', err);
+                      vm.err = err;
+                      alert('格式错误！请检查填写是否正确！')
+                  })
+                  .finally(res => {});
+          },
+
+          wechat_pay: function(data) {
+              let js_params = data.js_params;
+              let signature = data.signature;
+
+              //  微信支付
+              wx.config({
+                  debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+                  appId: js_params.appId, // 必填，公众号的唯一标识
+                  timestamp: js_params.timestamp, // 必填，生成签名的时间戳
+                  nonceStr: js_params.nonceStr, // 必填，生成签名的随机串
+                  signature: signature,// 必填，签名
+                  jsApiList: ['chooseWXPay', ], // 必填，需要使用的JS接口列表
+              });
+              wx.ready((res) => {
+                  //  发起微信支付
+                  wx.chooseWXPay({
+                      timestamp: js_params.timestamp, // 支付签名时间戳，注意微信jssdk中的所有使用timestamp字段均为小写。但最新版的支付后台生成签名使用的timeStamp字段名需大写其中的S字符
+                      nonceStr: js_params.nonceStr, // 支付签名随机串，不长于 32 位
+                      package: js_params.package, // 统一支付接口返回的prepay_id参数值，提交格式如：prepay_id=\*\*\*）
+                      signType: js_params.signType, // 签名方式，默认为'SHA1'，使用新版支付需传入'MD5'
+                      paySign: js_params.paySign, // 支付签名
+                      success: () => {
+                          window.location.pathname = source_url;  //  重定向到报名链接位置
+                      },
+                  });
+              });
+              wx.error((res) => {
+                  console.log('微信授权失败！', res);
+                  alert('微信授权失败！', res);
+              });
+          },
+      },
+      mounted() {
+
+      },
+  })
+</script>
+{% endblock extra_script %}

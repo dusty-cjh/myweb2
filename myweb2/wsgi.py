@@ -11,6 +11,7 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myweb2.settings')
+profile = os.environ.get('MYWEB2_PROFILE', 'develop')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myweb2.settings.{}'.format(profile))
 
 application = get_wsgi_application()

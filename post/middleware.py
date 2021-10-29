@@ -1,4 +1,5 @@
 import uuid
+from django.http.request import HttpRequest
 
 USER_KEY = 'uid'
 TEN_YEARS = 60 * 60 * 24 * 365 * 10

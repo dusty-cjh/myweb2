@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}
+测试
+{% endblock title %}
+
+
+{% block main %}
+<div id="app" class="container">
+  <h1>接口测试</h1>
+  <hr class="py-3">
+
+  <h2>上传文件</h2>
+  <form action="{% url "resource-list" %}" method="post" class="form">
+    <div class="form-group">
+      <label for="stream">文件</label>
+      <button class="form-control" name="stream">upload</button>
+    </div>
+    <div class="form-group">
+      <label for="link_type">链接类型</label>
+      <button class="form-control" name="stream">upload</button>
+    </div>
+    <div class="form-group">
+      <label for="stream">文件</label>
+      <button class="form-control" name="stream">upload</button>
+    </div>
+  </form>
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+  <script>
+  var app = new Vue({
+      el: '#app',
+      data: {
+
+      },
+      methods: {
+
+      },
+      delimiters: ['[[', ']]'],
+  })
+  </script>
+{% endblock extra_script %}

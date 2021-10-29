@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}
+移动测试
+{% endblock %}
+
+
+{% block main %}
+<div id="app" class="container">
+  <h3 class="pt-4">移动测试</h3>
+  <div class="row">
+
+    <div class="col-3">当前时间</div>
+    <div>[[ cur_time ]]</div>
+    <div class="w-100 py-3"></div>
+
+    <strong>加速度</strong>
+    <div class="w-100"></div>
+
+    <div class="col-2 text-primary">X</div>
+    <div class="col text-primary">[[ acc.x ]]</div>
+    <div class="w-100"></div>
+    <div class="col-2 text-primary">Y</div>
+    <div class="col text-primary">[[ acc.y ]]</div>
+    <div class="w-100"></div>
+    <div class="col-2 text-primary">Z</div>
+    <div class="col text-primary">[[ acc.z ]]</div>
+    <div class="w-100 py-4"></div>
+
+
+    <strong>角速度</strong>
+    <div class="w-100"></div>
+
+    <div class="col-2 text-success">X</div>
+    <div class="col text-success">[[ gyr.alpha ]]</div>
+    <div class="w-100"></div>
+    <div class="col-2 text-success">Y</div>
+    <div class="col text-success">[[ gyr.beta ]]</div>
+    <div class="w-100"></div>
+    <div class="col-2 text-success">Z</div>
+    <div class="col text-success">[[ gyr.gamma ]]</div>
+    <div class="w-100 py-4"></div>
+
+  </div>
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+<script>
+  var vm = new Vue({
+      el: '#app',
+      data: {
+          acc: {x:'测量中', y:'测量中', z:'测量中'},
+          gyr: {alpha:'测量中', beta:'测量中', gamma:'测量中'},
+          total: {x:[], y:[], z:[], t:[], alpha:[], beta:[], gamma:[], },
+          cur_time: (new Date()).toLocaleString(),
+      },
+
+      mounted() {
+          this.timer = setInterval(() => {
+              this.cur_time = (new Date()).toLocaleString();
+
+          }, 1000);
+      },
+      beforeDestroy() {
+          clearInterval(this.timer);
+      }
+  });
+
+  window.ondevicemotion = function(event) {
+      let acc = event.accelerationIncludingGravity;
+      let rot = event.rotationRate;
+
+      // 存储
+      vm.total.x.push(acc.x)
+      vm.total.y.push(acc.y)
+      vm.total.z.push(acc.z)
+      vm.total.t.push((new Date()).getTime())
+
+      vm.total.alpha.push(rot.alpha);
+      vm.total.beta.push(rot.beta);
+      vm.total.gamma.push(rot.gamma);
+
+      // 更新加速度
+      vm.acc = acc;
+      vm.gyr = rot;
+  };
+</script>
+{% endblock extra_script %}

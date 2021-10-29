@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}{% endblock %}
+
+{% block main %}
+  <div id="app">
+    <!-- 退款Modal -->
+    <div class="modal fade" id="refund_modal" tabindex="-1" role="dialog" aria-labelledby="modal_label" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modal_label">退款原因</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <input id="refund_reason" type="text" placeholder="请简述退款原因 .." value="不想买了" class="form-control">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+            <button @click="on_refund()" type="button" class="btn btn-primary">提交</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <div v-if="loading" class="container">
+      <br>
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+      <span>加载中 ...</span>
+      <br><br><br><br><br><br><br><br><br><br><br><br><br>
+      <br><br><br><br><br><br><br><br><br><br><br><br><br>
+      <br><br><br><br><br><br><br><br><br><br><br><br><br>
+    </div>
+    <div v-else-if="error">
+    <h4>加载失败！</h4>
+      <p>[[ error ]]</p>
+    </div>
+    <div v-else class="container pb-4">
+
+      <div class="row mb-3 pb-3 p-1" style="background-color: darkorange; color: white;">
+  {#      订单状态#}
+        <h3 class="col my-3">[[ order.status_display ]]</h3>
+
+  {# 收货地址 #}
+        <div class="w-100"></div>
+        <div class="col">
+          <div class="row justify-content-start">
+            <div class="col-1 text-center">
+              <svg class="bi bi-geo-alt" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+              </svg>
+            </div>
+            <div class="col">
+              <p class="my-0">[[ address.userName ]]
+                <small class="text-white">[[ address.telNumber ]]</small>
+              </p>
+              <p class="text-white mb-0"><small>[[ address.provinceName + address.cityName+
+                address.countryName+ address.detailInfo]]</small></p>
+            </div>
+          </div>
+  {#      配送时间#}
+        </div>
+      </div>
+
+{#      商品详情#}
+      <div class="py-2 mb-4">
+        <div class="media mb-1">
+          <img :src="goods.preview" alt="" class="rounded mr-3" width="100">
+          <div class="media-body">
+            <p class="d-flex justify-content-between mt-1">
+              [[ goods.title ]]
+              <span><small>￥</small>[[ goods.price ]]</span>
+            </p>
+            <small class="d-flex text-muted justify-content-end">
+              <span aria-hidden="true">&times;</span>
+              [[ order.nums ]]
+            </small>
+          </div>
+        </div>
+      </div>
+
+{#      总价、运费、优惠、实付款#}
+      <div>
+        <div class="row text-muted">
+          <div class="w-100"></div>
+          <div class="w-100"></div>
+          <small class="col"><small>运费</small></small>
+          <small class="col text-right">包邮</small>
+          <div class="w-100"></div>
+          <small class="col"><small>商品总价</small></small>
+          <small class="col text-right">
+            <small>￥</small>
+            [[ Number(goods.price * order.nums).toFixed(2) ]]
+          </small>
+        </div>
+
+        <div class="row my-2">
+          <small v-if="order.status_display == '待付款'" class="col">应付款</small>
+          <small v-else-if="order.status_display == '已确认收货' && order.payed == 0" class="col"></small>
+          <small v-else class="col">实付款</small>
+          <span v-if="order.status_display == '待付款'" class="col text-right" style="color: darkorange">
+            <small>￥</small>
+            [[ Number(order.total_fee / 100).toFixed(2) ]]
+          </span>
+          <span v-else-if="order.status_display == '已确认收货' && order.payed == 0" class="col text-right">已退款</span>
+          <span v-else class="col text-right" style="color: darkorange">
+            <small>￥</small>
+            [[ Number(order.payed / 100).toFixed(2) ]]
+          </span>
+        </div>
+{#        继续付款#}
+        <div v-if="order.status_display == '待付款'" class="d-flex justify-content-end">
+          <a @click="continue_pay()" role="button" class="btn btn-sm btn-outline-warning my-3" style="color: darkorange;">
+            <div v-if="paying" class="spinner-border spinner-border-sm" role="status">
+              <span class="sr-only"></span>
+            </div>
+            <small>继续付款</small>
+          </a>
+        </div>
+{#        申请退款#}
+        <p v-if="!order.refund_reason && order.status_display != '已确认收货' && order.status_display != '待付款' && order.status_display != '已取消'" class="text-right mt-2">
+          <a href="javascript:console.log('申请退款')" class="text-decoration-none" data-toggle="modal" data-target="#refund_modal">
+            <small class=" text-warning"><small>申请退款</small></small>
+          </a>
+        </p>
+        <p v-else-if="order.refund_reason && order.payed!=0" class="text-right text-danger">
+          <small>退款申请审核中，将在24小时内微信通知结果</small>
+        </p>
+      </div>
+
+      <div class="row bg-light">
+        <br>
+      </div>
+
+{#      评价#}
+      <div v-if="!order.refund_reason && order.status_display == '已确认收货' && !order.appraised && !is_appraised" class="pb-2">
+        <h5 class="mb-2 mt-3">评价</h5>
+        <div class="row">
+          <span class="col-3 mt-1"></span>
+          <appraise :star="star" @star_changed="star = $event"></appraise>
+          <small class="w-100"></small>
+        </div>
+        <textarea id="appraise_content" class="form-control my-4" rows="3" placeholder="从多个角度评价，可以帮助更多想买的人"></textarea>
+        <button type="button" class="btn btn-warning" @click="make_appraise">发表</button>
+      </div>
+      <div v-else-if="!order.refund_reason && order.status_display == '已确认收货' && !order.appraised" class="pt-3" >
+        <p>评价完成！</p>
+      </div>
+
+      <div v-show="!order.refund_reason && order.status_display == '已确认收货' && !order.appraised" class="row bg-light">
+        <br>
+      </div>
+
+{#      订单信息#}
+      <div>
+        <p class="mb-1 mt-3 ">订单信息</p>
+        <div class="row">
+          <small class="col-3"> 编号：</small>
+          <small class="col">[[ order.id ]]</small>
+          <small class="w-100"></small>
+          <small class="col-3"> 积分：</small>
+          <small class="col">获得[[ Number(order.payed / 10).toFixed(0) ]]点积分</small>
+        </div>
+
+        <div class="d-flex justify-content-around mt-3">
+          <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('contact_').click()">
+            <svg class="bi bi-chat-dots" width="1.3em" height="1.3em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z"/>
+              <path d="M5 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm4 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+            </svg>
+            联系卖家</button>
+          <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('contact_').click()">
+            <svg class="bi bi-phone" width="1.3em" height="1.3em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path fill-rule="evenodd" d="M11 1H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM5 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H5z"/>
+              <path fill-rule="evenodd" d="M8 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+            </svg>
+            拨打电话</button>
+        </div>
+        <a id="contact_" href="tel:13780359572"></a>
+      </div>
+
+    </div>
+
+    <div class="bg-light">
+      <br><br><br><br><br><br><br><br><br><br>
+    </div>
+  </div>
+
+{% endblock main %}
+
+{% block extra_script %}
+<script nonce data-fixed="true">
+  //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+</script>
+<script>
+  var vm = new Vue({
+      el: '#app',
+      data: {
+          order: {
+              id: {{ object.id }},
+              goods: {{ object.goods.id }},
+              refund_reason: "{{ object.refund_reason }}",
+              status_display: "{{ object.status_display }}",
+              nums: {{ object.nums }},
+              total_fee: {{ object.total_fee }},
+              payed: {{ object.payed }},
+          },
+          address: {% autoescape off %}{{ object.address }}{% endautoescape %},
+          goods: {
+              id: {{ object.goods.id }},
+              title: "{{ object.goods.title }}",
+              preview: "{{ object.goods.preview }}",
+              price: {{ object.goods.price }},
+          },
+          error: null,
+          loading: true,
+          paying: false,
+
+          // 评价
+          star: 0,
+          is_appraised: false,
+      },
+      delimiters: ['[[', ']]'],
+      methods: {
+          //  进行评价
+          make_appraise: function() {
+              var data = {
+                  'content': $("#appraise_content")[0].value ? $("#appraise_content")[0].value : '系统默认评价',
+                  'order': this.order.id,
+                  'star': this.star ? this.star : 5,
+              };
+              axios.post('{% url "appraise-list" %}', data, {headers: {'X-CSRFToken': csrf_token}})
+                  .then(() => this.is_appraised = true)
+                  .catch(function (err) {
+                      console.log(err.response.data);
+                  });
+          },
+
+          // 继续付款
+          continue_pay: function() {
+              var data = {
+                  'id': this.order.id,
+                  'continue_pay': true,
+                  'href': window.location.href,
+              };
+              this.paying = true;
+              axios.patch('{% url "order-list" %}' + String(data.id) + '/', data, {headers: {'X-CSRFToken': csrf_token}})
+                .then((res) => {
+                    //  do what?
+                })
+                .catch((err) => {
+                    console.log(err.response.data);
+                })
+          },
+
+          // 申请退款
+          on_refund: function () {
+            // close modal
+            $("#refund_modal").modal('hide');
+
+
+            //  construct data
+            var data = {
+                'id': this.order.id,
+                'refund_reason': $("#refund_reason")[0].value,
+            };
+            //  send request
+            axios.patch('{% url "order-list" %}' + String(data.id) + '/', data, {headers: {'X-CSRFToken': csrf_token}})
+              .then((res) => {
+                  console.log(res);
+              })
+              .catch((err) => {
+                  console.log(err.response.data);
+              })
+              .finally(() => window.location.href = '');
+          },
+
+          //  实付款金额
+          calc_fee: function () {
+              let fee = Number((this.order.total_fee * 0.2 + this.order.freight).toFixed(2))
+
+              return fee
+          }
+      },
+
+      mounted() {
+          this.loading = false;
+      },
+  });
+
+  //  退款接口
+  $('#refund_modal').on('shown.bs.modal', () => {
+    $('#refund_reason').trigger('focus');
+    $('#refund_reason').select();
+  });
+
+  Vue.component('star-empty', {
+      'template': '<svg style="color: darkorange;" class="bi bi-star" width="1.5em" height="1.5em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">\n' +
+          '<path fill-rule="evenodd" d="M2.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.523-3.356c.329-.314.158-.888-.283-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767l-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288l1.847-3.658 1.846 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.564.564 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>\n' +
+          '</svg>',
+  });
+
+  Vue.component('star-fill', {
+      'template': '<svg style="color: darkorange;" class="bi bi-star-fill" width="1.5em" height="1.5em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">\n' +
+          '<path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.283.95l-3.523 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>\n' +
+          '</svg>',
+  });
+
+  Vue.component('appraise', {
+      'props': ['star', ],
+      'template': '<div class="d-flex">' +
+          '            <div @click="$emit(\'star_changed\', 1)">\n' +
+          '            <star-empty v-if="star < 1"></star-empty>\n' +
+          '            <star-fill v-else></star-fill>&nbsp;</div>\n' +
+          '            <div @click="$emit(\'star_changed\', 2)">\n' +
+          '            <star-empty v-if="star < 2"></star-empty>\n' +
+          '            <star-fill v-else></star-fill>&nbsp;</div>\n' +
+          '            <div @click="$emit(\'star_changed\', 3)">\n' +
+          '            <star-empty v-if="star < 3"></star-empty>\n' +
+          '            <star-fill v-else></star-fill>&nbsp;</div>\n' +
+          '            <div @click="$emit(\'star_changed\', 4)">\n' +
+          '            <star-empty v-if="star < 4"></star-empty>\n' +
+          '            <star-fill v-else></star-fill>&nbsp;</div>\n' +
+          '            <div @click="$emit(\'star_changed\', 5)">\n' +
+          '            <star-empty v-if="star < 5"></star-empty>\n' +
+          '            <star-fill v-else></star-fill>&nbsp;</div>' +
+          '</div>',
+  });
+
+</script>
+{% endblock extra_script %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}
+我的订单
+{% endblock title %}
+
+
+{% block main %}
+
+{% endblock main %}
+
+
+{% block extra_script %}
+  <script>
+  //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+
+  </script>
+{% endblock extra_script %}

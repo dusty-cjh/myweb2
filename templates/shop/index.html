@@ -1,0 +1,182 @@
+{% extends "post/index.html" %}
+{% load static %}
+
+{% block title %}
+微信小商店 | 蛮三
+{% endblock %}
+
+
+{% block content %}
+<div class="container" id="app">
+
+
+{# 筛选商品种类 #}
+{#<div class="input-group my-3">#}
+{#  <input type="text" class="form-control" placeholder="搜索关键字，如“书”" aria-label="Recipient's username" aria-describedby="button-addon2">#}
+{#  <div class="input-group-append">#}
+{#    <button class="btn btn-outline-primary" type="button" id="button-addon2">#}
+{#      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">#}
+{#  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>#}
+{#</svg>#}
+{#    </button>#}
+{#  </div>#}
+{#</div>#}
+
+  {#  加载中标志#}
+  <div v-if="loading">
+    <h3>
+      <div class="spinner-border" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+      loading ...
+    </h3>
+  </div>
+{#  主页面#}
+  <div class="row" v-else>
+    <div class="col-md-2"></div>
+    <div class="col-md-8 bg-white py-3">
+      <!-- 商品列表 -->
+      <div class="row">
+        <div class="col-6 justify-content-center" v-if="object_list.length>0" v-for="obj in object_list" style="padding-left: 2px; padding-right: 2px; ">
+          <div class="card my-2 border-0">
+            <img :src="obj.preview" alt="好物预览" width="100%">
+            <div class="card-body px-2 py-0">
+              <p class="py-0 my-0">[[ obj.title ]]</p>
+              <p class="d-flex justify-content-between" >
+                <small class="text-white bg-warning rounded px-1">￥<strong>[[ obj.price ]]</strong></small>
+
+                <small class="text-muted text-success">
+                  <svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-eye-fill text-darkwhite" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                    <path fill-rule="evenodd" d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+                  </svg>
+                  [[ obj.pv ]]
+                </small>
+              </p>
+            </div>
+            <a :href="obj.url" class="stretched-link" target="_blank"></a>
+          </div>
+        </div>
+        <div class="col" v-if="object_list.length==0">
+          <p class="text-muted text-center">空空如也~</p>
+        </div>
+      </div>
+
+    </div>
+    <div class="col-md-2"></div>
+    <div class="w-100"></div>
+
+{#    点击加载更多#}
+    <button class="btn btn-light form-control my-2 py-2" @click="load_goods(next)" :disabled="!next">
+      [[ next ? '点击加载更多' : '没有更多内容了' ]]
+    </button>
+  </div>
+</div>
+{% endblock content %}
+
+
+{% block extra_script %}
+  <script src="{% get_media_prefix %}js/screen.js"></script>
+<script>
+    //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+    wx.ready(function () {
+        {% with object=object_list|first %}
+        //  分享到微信或者QQ
+        wx.updateAppMessageShareData({
+          title: '微信小商店 | 蛮三', // 分享标题
+          desc: '快毕业了，最近闲着卖点旧书、旧器件啥的。', // 分享描述
+          link: window.location.origin+'{% url 'shop:index'%}',
+          imgUrl: window.location.origin+'{{ object.preview }}', // 分享图标
+          fail: (res)=> {
+              console.log('微信QQ分享接口调用失败！ error:', res);
+          },
+        });
+
+        //  分享到朋友圈或者QQ空间
+        wx.updateTimelineShareData({
+          title: '微信小商店 | 蛮三', // 分享标题
+          link: window.location.origin+'{% url 'shop:index' %}',
+          imgUrl: window.location.origin+'{{ object.preview }}', // 分享图标
+          fail: (res)=> {
+              console.log('朋友圈分享接口调用失败！ error:', res);
+          },
+        })
+      });
+      {% endwith %}
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+
+var vm = new Vue({
+    el: '#app',
+    data: {
+        error: null,
+        loading: true,
+        object_list: [],
+        next: '{% url "goods-list" %}',
+    },
+    methods: {
+        load: function() {
+            let vm=this;
+            if(getScrollTop() + getWindowHeight() >= getScrollHeight()){
+                if(vm.next){      //先判断下一页是否有数据
+                    vm.load_goods(vm.next);
+                }else{
+                    //到底了
+                }
+            }
+        },
+        load_goods: function(url) {
+            console.log("load goods: ");
+            axios.get(url)
+                 .then(res => {
+                     var obj_list = res.data.results;
+                     for (let i=0; i < obj_list.length; ++i) {
+                         obj_list[i].created_time = new Date(obj_list[i].created_time);
+                     }
+                     this.object_list = this.object_list.concat(obj_list);
+                     this.next = res.data.next;
+                 })
+                 .catch(err => this.error = err)
+                 .finally(res => {
+                     console.log(res);
+                     this.loading = false;
+                 });
+        },
+    },
+    delimiters: ['[[', ']]'],
+    mounted() {
+        // 加载商品
+        this.load_goods(this.next);
+        window.addEventListener('scroll', this.load);
+    },
+    destroyed() {
+        window.removeEventListener('scroll', this.load, false);
+    },
+});
+</script>
+{% endblock extra_script %}

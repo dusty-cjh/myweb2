@@ -1,5 +1,35 @@
 {% extends "post/index.html" %}
 
+{% block title %}
+支持一下 | 蛮三
+{% endblock %}
+
+
 {% block content %}
-<h2>support is building ...</h2>
+<div class="container" id="app">
+  <div class="row">
+    <div class="col-md-2"></div>
+    <div class="col-md-8 bg-white py-5">
+
+      <h4>联系方式</h4>
+      <strong>微信&nbsp;&nbsp; </strong> dusty_cjh<br><strong>QQ&nbsp;&nbsp; </strong> 2930007061
+      <br><hr><br>
+      <h4>和我一起</h4>
+      <ul>
+        <li><strong>缺前端！缺前端！缺前端！重三！</strong></li>
+        <li>我自己写的太烂啦~</li>
+        <li>希望能有个大佬一块合作</li>
+        <li>能肉眼可见地把博客页面焕新最好！</li>
+        <li><a href="/api/doc/">前端API文档</a></li>
+      </ul>
+    </div>
+    <div class="col-md-2"></div>
+  </div>
+</div>
 {% endblock content %}
+
+
+
+{% block extra_script %}
+
+{% endblock extra_script %}

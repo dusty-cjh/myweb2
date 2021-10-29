@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ object.name }}
+{% endblock title %}
+
+{% block main %}
+<div id="app">
+  <div class="container-fluid mt-2">
+    <div v-if="form_errors" class="alert alert-danger alert-dismissable fade show">
+      [[ form_errors ]]
+      <button class="close" type="button" data-dismiss='alert' aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+      <div>
+          <div class="bg-light mb-3 shadow-sm">
+            <div v-if="address.userName==null" class="input-group">
+              <a @click="get_address()" href="#" class="btn btn-warning form-control text-white">选择收货地址</a>
+            </div>
+            <div v-else class="pt-3">
+              <div class="row justify-content-between">
+                <div class="col">[[ address.userName ]]</div>
+                <div class="col">[[ address.telNumber ]]</div>
+                <div class="w-100"></div>
+                <div class="col">[[ address.provinceName ]][[ address.cityName ]][[ address.countryName ]]
+                [[ address.detailInfo ]]
+                </div>
+                <div class="w-100"></div>
+              </div>
+              <p class="text-right py-1"><a @click="get_address()" href="#" class="text-warning">修改收货地址</a></p>
+            </div>
+          </div>
+
+          {# 商品信息 #}
+          <div class="shadow-sm bg-light my-3 pt-2">
+              <div class="media mb-1">
+                  <img src="{{ object.preview }}" alt="" class="mr-3" width="100">
+                  <div class="media-body">
+                      <p>{{ object.title }}</p>
+                      <small>￥</small>{{ object.price }}
+                      <small class="text-warning border border-warning px-1 mx-2 rounded">包邮</small>
+                  </div>
+              </div>
+          </div>
+
+          {# 底边栏 #}
+          <nav class="navbar fixed-bottom navbar-light bg-light">
+              <span class="text-danger mr-auto"><span class="text-body">实付款：</span><small >￥</small>
+                <span id="total_price" class="mr-1">
+                  <span>{{ object.price }}</span>
+                </span>
+              </span>
+              <button class="btn btn-danger text-white ml-auto" type="button" @click="pay()">
+                <div v-if="paying" class="spinner-border spinner-border-sm text-light" role="status">
+                  <span class="sr-only"></span>
+                </div>
+                立即支付
+              </button>
+          </nav>
+
+{#        总价#}
+        <div class="mt-0 py-1" style="background-color: #fdfdfd">
+          <div class="d-flex justify-content-between">
+            <small class="text-muted ml-4">总价</small>
+            <small class="text-muted"><small>￥</small>{{ object.price }}</small>
+          </div>
+        </div>
+
+        {# 安全提示 #}
+        <p class="py-3">
+            <svg class="bi bi-shield-lock-fill text-success" width="1em" height="1em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M5.187 1.025C6.23.749 7.337.5 8 .5c.662 0 1.77.249 2.813.525a61.09 61.09 0 0 1 2.772.815c.528.168.926.623 1.003 1.184.573 4.197-.756 7.307-2.367 9.365a11.191 11.191 0 0 1-2.418 2.3 6.942 6.942 0 0 1-1.007.586c-.27.124-.558.225-.796.225s-.526-.101-.796-.225a6.908 6.908 0 0 1-1.007-.586 11.192 11.192 0 0 1-2.417-2.3C2.167 10.331.839 7.221 1.412 3.024A1.454 1.454 0 0 1 2.415 1.84a61.11 61.11 0 0 1 2.772-.815zm3.328 6.884a1.5 1.5 0 1 0-1.06-.011.5.5 0 0 0-.044.136l-.333 2a.5.5 0 0 0 .493.582h.835a.5.5 0 0 0 .493-.585l-.347-2a.5.5 0 0 0-.037-.122z" clip-rule="evenodd"/>
+            </svg>
+            <small class="text-muted">交易保障 13780359572</small>
+        </p>
+      </div>
+  </div>
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+  <script>
+  //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+
+  var vm = new Vue({
+      el: '#app',
+      data: {
+          form_errors: null,
+          paying: false,
+          address: {
+            userName: null, postalCode: null, provinceName: null, cityName: null,
+              countryName: null, detailInfo: null, nationalCode: null, telNumber: null,
+          },
+      },
+      delimiters: ['[[', ']]'],
+      methods: {
+          pay: function() {
+              //  check
+              if(vm.address.userName == null) {
+                  vm.form_errors = "收货地址不能为空！";
+                  return;
+              }
+
+              //  创建数据
+              let data = {
+                  'goods': {{ object.id }},
+                  'address': JSON.stringify(vm.address),
+                  'nums': 1,
+                  'href': window.location.href,
+              }
+
+              //  支付提示
+              this.paying = true;
+              axios.post('{% url "order-list" %}', data, {headers: {'X-CSRFToken': csrf_token}})
+              .then(res => {
+                  let data = res.data;
+                  //  发起微信支付
+                  wx.chooseWXPay({
+                      timestamp: data.timestamp, // 支付签名时间戳，注意微信jssdk中的所有使用timestamp字段均为小写。但最新版的支付后台生成签名使用的timeStamp字段名需大写其中的S字符
+                      nonceStr: data.nonceStr, // 支付签名随机串，不长于 32 位
+                      package: data.package, // 统一支付接口返回的prepay_id参数值，提交格式如：prepay_id=\*\*\*）
+                      signType: data.signType, // 签名方式，默认为'SHA1'，使用新版支付需传入'MD5'
+                      paySign: data.paySign, // 支付签名
+                      fail: (res) => {
+                          let data = res.responseData;
+                          this.paying = false;
+                          console.log('微信支付失败', data);
+                      },
+                      success: () => {
+                          window.location.pathname = "{% url 'shop:index' %}order-detail/" + String(res.data.id) + "/";
+                      },
+                  });
+              })
+              .catch(err => {
+                  this.paying = false;
+                  console.error('微信预付单创建失败：', err.response.data);
+                  alert('预付单创建失败');
+              })
+              .finally(() => this.paying = false);
+          },
+
+          get_address: ()=> {
+              wx.openAddress({
+                success: (res)=> {
+                  vm.address.userName = res.userName; // 收货人姓名
+                  vm.address.postalCode = res.postalCode; // 邮编
+                  vm.address.provinceName = res.provinceName; // 国标收货地址第一级地址（省）
+                  vm.address.cityName = res.cityName; // 国标收货地址第二级地址（市）
+                  vm.address.countryName = res.countryName; // 国标收货地址第三级地址（国家）
+                  vm.address.detailInfo = res.detailInfo; // 详细收货地址信息
+                  vm.address.nationalCode = res.nationalCode; // 收货地址国家码
+                  vm.address.telNumber = res.telNumber; // 收货人手机号码
+
+                  vm.form_errors = null;
+                },
+                fail: (res) => {
+                    console.log(res)
+                },
+              });
+          },
+      },
+      mounted() {
+
+      },
+  });
+  </script>
+{% endblock extra_script %}

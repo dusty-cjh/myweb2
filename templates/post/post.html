@@ -1,0 +1,23 @@
+{% extends "post/main-page.html" %}
+{% load static %}
+
+{% block title %}
+{{ object.title }}
+{% endblock %}
+
+{% block content_head %}
+  <link rel="stylesheet" href="{% static 'django_ckeditor_5/content.css' %}">
+{% endblock content_head %}
+
+{% block content %}
+<div class="container">
+  <div class="row">
+    <div class="col-md-3 col-xs-0">
+    </div>
+    <div name="content" id="ckeditor5" class="col ck-content">
+      {% autoescape off %}{{ object.content }}{% endautoescape %}
+    </div>
+    <div class="col-md-3 col-xs-0"></div>
+  </div>
+</div>
+{% endblock content %}

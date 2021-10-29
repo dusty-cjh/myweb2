@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ object.name }}
+{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'django_ckeditor_5/content.css' %}">
+{% endblock %}
+
+{% block main %}
+
+<!-- Modal -->
+<div class="modal fade" id="concat_modal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-body">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+          </button>
+          <h4>陈强</h4>
+          <table class="table">
+              <tr>
+                  <td>电话</td>
+                  <td><a href="tel:13780359572">13780359572</a></td>
+              </tr>
+              <tr>
+                  <td>微信号</td>
+                  <td>dusty_cjh</td>
+              </tr>
+          </table>
+          <img src="/media/info/陈强.jpg" alt="微信名片" style="width: 100%">
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- 巨幕 -->
+  <div id='carousel-head' class="carousel">
+      <div class="carousel-inner">
+          <div class="carousel-item active">
+              <img src="{{ object.preview }}" alt="china" class="d-block w-100">
+          </div>
+      </div>
+  </div>
+
+  <!-- 商品参数 -->
+  <div class="container-fluid bg-light pb-3">
+      <!-- 价格 -->
+      <div class="d-flex justify-content-between">
+          <h5 class="text-danger mt-3"><small>￥</small>{{ object.price }}</h5>
+      </div>
+
+      <!-- 详情 -->
+      <p>{{ object.title }}</p>
+
+      <!-- 其他信息 -->
+      <div class="d-flex justify-content-between text-muted text-dander">
+          <small class="pr-5">包邮</small>
+          <small class="pr-2">{{ object.pv }}次浏览</small>
+      </div>
+  </div>
+
+
+{% with appraise_count=object.appraise_set.count %}
+{% if appraise_count %}
+<!-- 商品评价 -->
+<div class="container-fluid bg-light mt-3 pt-3 pb-2">
+  <div class="d-flex justify-content-between">
+    <span>宝贝评价({{ appraise_count }})</span>
+    <span><a href="{% url 'shop:appraise' object.id %}" class="text-warning">查看全部 ></a></span>
+  </div>
+  <div class="p-0 mt-3 mb-2"></div>
+  <div>
+  {% with appraise=object.appraise_set.all|first %}
+    <div>
+      <svg width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi bi-person-circle text-warning" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13.468 12.37C12.758 11.226 11.195 10 8 10s-4.757 1.225-5.468 2.37A6.987 6.987 0 0 0 8 15a6.987 6.987 0 0 0 5.468-2.63z"/>
+        <path fill-rule="evenodd" d="M8 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+        <path fill-rule="evenodd" d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8z"/>
+      </svg>
+      {{ appraise.user.username }}
+    </div>
+    <small class="d-block">{{ appraise.content }}</small>
+  {% endwith %}
+  </div>
+</div>
+{% endif %}
+{% endwith %}
+
+
+<div class="container">
+    <div class="row">
+    <div class="col-md-3 col-xs-0">
+    </div>
+    <div name="content" id="editor" class="col ck-content">
+    {% autoescape off %}
+    {{ object.content }}
+    {% endautoescape %}
+    </div>
+    <div class="col-md-3 col-xs-0"></div>
+  </div>
+</div>
+
+<!-- 下单链接 -->
+<div class="container-fluid">
+    <form id="submit_form" class="row fixed-bottom bg-light" action="{% url 'shop:order-create' object.id %}" method="GET">
+        <a href="#" role="button" data-toggle="modal" data-target="#concat_modal" class="d-block pl-5 text-primary text-center">
+            <div class="">
+                <svg class="bi bi-people" width="1.2em" height="1.2em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M15 14s1 0 1-1-1-4-5-4-5 3-5 4 1 1 1 1h8zm-7.995-.944v-.002.002zM7.022 13h7.956a.274.274 0 0 0 .014-.002l.008-.002c-.002-.264-.167-1.03-.76-1.72C13.688 10.629 12.718 10 11 10c-1.717 0-2.687.63-3.24 1.276-.593.69-.759 1.457-.76 1.72a1.05 1.05 0 0 0 .022.004zm7.973.056v-.002.002zM11 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm3-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM6.936 9.28a5.88 5.88 0 0 0-1.23-.247A7.35 7.35 0 0 0 5 9c-4 0-5 3-5 4 0 .667.333 1 1 1h4.216A2.238 2.238 0 0 1 5 13c0-1.01.377-2.042 1.09-2.904.243-.294.526-.569.846-.816zM4.92 10c-1.668.02-2.615.64-3.16 1.276C1.163 11.97 1 12.739 1 13h3c0-1.045.323-2.086.92-3zM1.5 5.5a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm3-2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" clip-rule="evenodd"/>
+                </svg>
+            </div>
+            <div class="mt-n1"><small>联系卖家</small></div>
+        </a>
+
+      {% csrf_token %}
+        <div class="col-3 ml-auto bg-danger text-white text-center py-1 mr-3">
+            <p class="m-0"><small>￥</small><span id="pre_price">{{ object.price }}</span></p>
+            <p class="mb-0 mt-n2">立即订购</p>
+            <a href="javascript:window.location.pathname='{% url 'shop:order-create' object.id %}';" class="stretched-link"></a>
+        </div>
+        <button hidden id="btn_buy" type="submit"></button>
+    </form>
+</div>
+{% endblock main %}
+
+
+{% block extra_script %}
+  <script>
+    //  global variable
+  var csrf_token = "{{ csrf_token }}";
+
+  //  配置微信接口
+  wx.config({
+      debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，参数信息在pc端会通过log打出
+      appId: "{{ js_params.appId }}", // 必填，公众号的唯一标识
+      timestamp: "{{js_params.timestamp}}", // 必填，生成签名的时间戳
+      nonceStr: "{{js_params.nonceStr}}", // 必填，生成签名的随机串
+      signature: "{{js_params.signature}}",// 必填，签名
+      jsApiList: ['chooseWXPay', 'updateAppMessageShareData',
+      'updateTimelineShareData', "onMenuShareWeibo","onMenuShareQZone",
+      "startRecord", "stopRecord", "onVoiceRecordEnd","playVoice",
+      "pauseVoice","stopVoice","onVoicePlayEnd","uploadVoice","downloadVoice","chooseImage",'previewImage',
+      "uploadImage","downloadImage","translateVoice","getNetworkType","openLocation","getLocation",
+      "hideOptionMenu","showOptionMenu",'hideMenuItems',"showMenuItems","hideAllNonBaseMenuItem",
+      "showAllNonBaseMenuItem","closeWindow","scanQRCode","chooseWXPay",
+      "openProductSpecificView","addCard",'chooseCard',
+      "openCard",
+      ], // 必填，需要使用的JS接口列表
+  });
+  wx.ready(function(){
+    console.log("WeChat JS API Config Success!");
+    wx.ready(function () {
+
+        //  分享到微信或者QQ
+        wx.updateAppMessageShareData({
+          title: '{{ object.title }}', // 分享标题
+          desc: '{{ object.title }}', // 分享描述
+          link: window.location.origin+'{% url 'shop:goods' object.id %}',
+          imgUrl: window.location.origin+'{{ object.preview }}', // 分享图标
+          fail: (res)=> {
+              console.log('微信QQ分享接口调用失败！ error:', res);
+          },
+        });
+
+        //  分享到朋友圈或者QQ空间
+        wx.updateTimelineShareData({
+          title: '{{ object.title }}', // 分享标题
+          link: window.location.origin+'{% url 'shop:goods' object.id %}',
+          imgUrl: window.location.origin+'{{ object.preview }}', // 分享图标
+          fail: (res)=> {
+              console.log('朋友圈分享接口调用失败！ error:', res);
+          },
+        })
+      });
+  });
+  wx.error(function(res){
+    console.log("Wechat JS API Config Error:", res);
+    alert("微信JS API配置错误！");
+  });
+  </script>
+{% endblock extra_script %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}
+二手合集
+{% endblock %}
+
+{% block extra_head %}
+<style type="text/css">
+ .wrapper {position: relative;}
+ #input_copy {position: absolute;top: 0;left: 0;opacity: 0;z-index: -10;}
+</style>
+{% endblock %}
+
+
+{% block main %}
+  <input type="text" id="input_copy" class="wrapper">
+  <div class="container" id="app">
+
+  <div class="py-3 row align-items-center">
+    <div class="col-1"></div>
+    <img width="10%" class="col-10" src="/static/resource/6139120018140e9c0b617990a298a5269322536af9b3f31ac1b04fe0e823714e.png" alt="">
+    <div class="col-1"></div>
+  </div>
+  <p class="pt-4">🍊以下为<strong class=" text-danger"> 3 天内</strong>燕大二手群所有发布信息！</p>
+  <p class="text-primary">💙点击蓝字复制卖家QQ号</p>
+
+  <div class="row pt-4">
+    <div class="col-md-2 col-4 bg-warning text-white p-2 border border-white"><strong>物品名称 ↓</strong></div>
+    <div class="col-md-2 col-4 bg-warning text-white p-2 border border-white"><strong>价格 ↓</strong></div>
+    <div class="col-md-2 col-4 bg-warning text-white p-2 border border-white"><strong>联系QQ ↓</strong></div>
+    <div class="w-100"><hr></div>
+    {% for obj in object_list %}
+    <div class="col-md-2 col-4 border py-2 mt-3 pr-0" style="background-color: #f5f5f5"><strong>{{ obj.title }}</strong></div>
+    <div class="col-md-2 col-4 border py-2 mt-3 text-danger" style="background-color: #f5f5f5"><strong>￥{{ obj.price }}</strong></div>
+    <div class="col-md-2 col-4 border py-2 mt-3 pl-0 text-primary" style="background-color: #f5f5f5">
+      <a href="#" onclick="copyText('{{ obj.id }}')"><strong>
+        <span id="text{{ obj.id }}">{{ obj.contact }}</span>
+      </strong></a>
+    </div>
+      {% for url in obj.previews_url %}
+      <div class="col-md-2 col-6 px-0"><a href="https://jq.qq.com/?_wv=1027&k=oTecA8lh"><img src="{{ url }}" width="100%"></a></div>
+      {% endfor %}
+    <div class="w-100 pt-4"></div>
+    {% endfor %}
+  </div>
+
+    <hr class="my-5 border">
+
+    <h5 class="pt-5">欢迎加入<strong>燕大二手交易</strong>群 👇👇👇</h5>
+    <div><img src="/media/django_ckeditor_5/image_JGbk0xp.png" alt="二手群 645125440" width="100%"></div>
+  
+  </div>
+{% endblock %}
+
+
+{% block extra_script %}
+  <script>
+    function copyText(ele_id) {
+      var text = document.getElementById("text"+ele_id).innerText;
+      var input = document.getElementById("input_copy");
+      input.value = text; // 修改文本框的内容
+      input.select(); // 选中文本
+      document.execCommand("copy"); // 执行浏览器复制命令
+      alert("复制成功！")
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}八鱼樱桃沟{% endblock %}
+
+{% block main %}
+<div id="app" class="container">
+    <div v-if="payed" class="pt-5 mt-5">
+        <h3>已付款，请让我看一眼屏幕</h3>
+        <h1 style="font-size: 128px;">[[ payed_detail.total_fee / 100 ]]</h1>
+        <button onclick="app.payed = false" class="form-control form-control-lg btn btn-success">继续支付</button>
+    </div>
+
+    <div v-else class="mt-5 pt-5">
+        <div class="form-group mt-5">
+            <label for="retail_fee"><small>付款给<strong>八鱼樱桃沟</strong></small></label>
+            <input type="number" class="form-control form-control-lg" v-model="retail_fee" placeholder="输入金额 .." id="retail_fee">
+        </div>
+        <button v-on:click="retail_pay" class="btn btn-success btn-lg form-control form-control-lg">确定</button>
+    </div>
+
+    <div class="pt-5 mt-5">
+        <p><small class="text-muted">长按扫描</small></p>
+        <img src="/static/qrcode.jpg" alt="微信公众号二维码" width="100%">
+    </div>
+</div>
+{% endblock main %}
+
+{% block extra_script %}
+<script>
+    window.onload = () => {
+        $("#retail_fee")[0].focus();
+    }
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            retail_fee: ' ',
+            retail_api: "{% url 'retail-list' %}",
+            payed: false,
+            payed_detail: {},
+        },
+        methods: {
+            retail_pay: function() {
+                let total_fee = Number(this.retail_fee) * 100
+                if (total_fee <= 0) {
+                    alert('请输入正确的金额');
+                    return
+                }
+
+                console.log('付款金额：', total_fee);
+                let data = {
+                    total_fee: total_fee,
+
+                    csrfmiddlewaretoken: "{{ csrf_token }}",
+                    href: window.location.href,
+                }
+                $.ajax({
+                    type: 'POST',
+                    url: this.retail_api,
+                    data: data,
+                    dataType: 'json',
+
+                    success: (data) => {
+                        console.log('微信支付API返回：', data)
+
+                        this.payed_detail = data
+                        let js_params = data.js_params
+                        let signature = data.signature
+
+                        //  微信支付
+                        wx.config({
+                            debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+                            appId: js_params.appId, // 必填，公众号的唯一标识
+                            timestamp: js_params.timestamp, // 必填，生成签名的时间戳
+                            nonceStr: js_params.nonceStr, // 必填，生成签名的随机串
+                            signature: signature,// 必填，签名
+                            jsApiList: ['chooseWXPay', ], // 必填，需要使用的JS接口列表
+                        });
+                        wx.ready((res) => {
+                            //  发起微信支付
+                            wx.chooseWXPay({
+                                timestamp: js_params.timestamp, // 支付签名时间戳，注意微信jssdk中的所有使用timestamp字段均为小写。但最新版的支付后台生成签名使用的timeStamp字段名需大写其中的S字符
+                                nonceStr: js_params.nonceStr, // 支付签名随机串，不长于 32 位
+                                package: js_params.package, // 统一支付接口返回的prepay_id参数值，提交格式如：prepay_id=\*\*\*）
+                                signType: js_params.signType, // 签名方式，默认为'SHA1'，使用新版支付需传入'MD5'
+                                paySign: js_params.paySign, // 支付签名
+                                success: () => this.payed = true,
+                            });
+                        });
+                        wx.error((res) => {
+                            console.log('微信授权失败！', res);
+                            alert('微信授权失败！', res);
+                        });
+                    },
+                    error: (res) => {
+                        if (res.status === 400) {
+                            alert('请输入正确的金额');
+                        }else{
+                            alert('服务器故障');
+                        }
+                    },
+                })
+            },
+        },
+    })
+</script>
+{% endblock extra_script %}

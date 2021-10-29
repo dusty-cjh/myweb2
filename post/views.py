@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.views.generic import ListView, TemplateView, DetailView
+from django.http.response import HttpResponse
 
 from .models import Post, Summary
 
@@ -20,3 +21,11 @@ class AboutView(TemplateView):
 class SupportView(TemplateView):
     template_name = 'post/support.html'
 
+
+class PostDetailView(DetailView):
+    queryset = Post.objects.all()
+    template_name = 'post/post.html'
+
+
+def wx_verify(request):
+    return HttpResponse(b'cnuhJDCblRVDP7Vf', status=200)

@@ -1,4 +1,5 @@
 from django.db import models
+from django_ckeditor_5.fields import CKEditor5Field
 
 
 class PostBase(models.Model):
@@ -10,7 +11,7 @@ class PostBase(models.Model):
     )
 
     title = models.CharField(verbose_name='标题', max_length=50)
-    content = models.TextField(verbose_name='正文')
+    content = CKEditor5Field(config_name='extends', verbose_name='正文')
     status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_VISIBLE)
     created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
 
@@ -25,19 +26,6 @@ class PostBase(models.Model):
 class Post(PostBase):
     class Meta:
         verbose_name = verbose_name_plural = '文章'
-
-
-class Goods(PostBase):
-    price = models.FloatField(verbose_name='价格')
-    previews = models.CharField(verbose_name='商品预览', max_length=640)
-    visit = models.PositiveIntegerField(verbose_name='访问量', default=0)
-    sales = models.PositiveIntegerField(verbose_name='销量', default=0)
-
-    class Meta:
-        verbose_name = verbose_name_plural = '商品'
-
-    def get_previews(self):
-        return self.previews.split('*')
 
 
 class Summary(models.Model):
@@ -58,10 +46,12 @@ class Summary(models.Model):
     url = models.CharField(verbose_name='链接', max_length=200)
     created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
     title = models.CharField(verbose_name='标题', max_length=50)
-    desc = models.CharField(verbose_name='描述', max_length=200)
+    desc = models.CharField(verbose_name='描述', max_length=200, default='', blank=True)
     recommend = models.BooleanField(verbose_name='是否推荐', default=False, help_text='如果作为推荐，则加入推荐系统')
     mainpage = models.BooleanField(verbose_name='是否首页可见', default=False, help_text='是否首页可见，否则只能在后台看到')
     preview = models.CharField(verbose_name='预览', help_text='图/音视频', max_length=200)
+    uv = models.PositiveIntegerField(verbose_name='Unique Visitor', default=0)
+    pv = models.PositiveIntegerField(verbose_name='Page View', default=0)
 
     class Meta:
         verbose_name = verbose_name_plural = '摘要'
@@ -77,3 +67,4 @@ class Summary(models.Model):
     @classmethod
     def get_recommend(cls):
         return cls.objects.filter(recommend=True)
+
