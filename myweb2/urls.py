@@ -24,6 +24,7 @@ urlpatterns = [
     path('wechat/', include('wechat.urls')),
     path('admin/', admin.site.urls),
     path('shop/', include('shop.urls')),
+    path('resource/', include('resource.urls')),
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
     path('ckeditor5/', include('django_ckeditor_5.urls')),

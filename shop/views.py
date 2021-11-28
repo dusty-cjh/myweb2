@@ -1,4 +1,5 @@
 import time
+import logging
 from django.views.generic import ListView, TemplateView, DetailView
 from django.core.cache import cache
 from django.db.models import F
@@ -6,6 +7,8 @@ from django.conf import settings
 
 from wechat.mixin import OAuthMixin, WeChatCommonMixin, WxViewContextMixin
 from .models import Order, Goods, Appraise
+
+log = logging.getLogger('info')
 
 
 class IndexView(WeChatCommonMixin, WxViewContextMixin, ListView):

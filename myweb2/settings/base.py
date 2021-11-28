@@ -61,7 +61,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'post.middleware.UserIDMiddleware',
-    # 'config.middlewares.CorsMiddleWare',    # CORS
+    'config.middlewares.CorsMiddleWare',    # CORS
 ]
 
 ROOT_URLCONF = 'myweb2.urls'
@@ -122,6 +122,12 @@ USE_TZ = True
 # AUTH_USER_MODEL = 'user.MyUser' # 在源码中修改
 
 DOMAIN = 'hdcjh.xyz'
+
+
+ENV = os.getenv('ENV', 'test')
+
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # ckeditor
@@ -223,21 +229,116 @@ REST_FRAMEWORK = {
 }
 
 
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/3.0/howto/static-files/
+
+STATIC_URL = '/static/'
+STATIC_ROOT = {
+    'test': os.path.join(BASE_DIR, 'static'),
+    'live': '/opt/static/'
+}
+STATIC_ROOT = STATIC_ROOT[ENV]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = {
+    'test': os.path.join(BASE_DIR, 'media'),
+    'live': '/opt/media/',
+}
+MEDIA_ROOT = MEDIA_ROOT[ENV]
+
+
+RESOURCE_URL  = os.path.join(STATIC_URL, 'resource')
+RESOURCE_ROOT = os.path.join(STATIC_ROOT, 'resource')
+
+
+ADMINS = [ ('Jiaohao.chen', 'jiahao.chen@seamoney.com'), ('dusty-cjh', 'dusty-cjh@qq.com'), ]
+
+
+# 微信号 小蛮三
+WECHAT = {
+    'app_id': 'wx23279c94c52ac9fd',
+    'app_secret': '8f783a4be8d36801e201ab170bcacc56',
+    'token': 'StSVhLSKDMO3JieDpLKlZjd0VTtT0lKa',
+    'aes_key': 'M88JHVgq1VuNN8CGmvNUgbnHfGhgVHH8gYBhJ6FhcgH',
+    'merchant_id': '1609790020',
+    'merchant_api_key': '01234567890123456789012345678901',
+    'merchant_key': os.path.join(STATIC_ROOT, 'cert', 'apiclient_key.pem'),
+    'merchant_cert': os.path.join(STATIC_ROOT, 'cert', 'apiclient_cert.pem'),
+}
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'heavy': {
+            'format': '{levelname} {asctime} {pathname} {lineno} {message}',
+            'style': '{',
+        },
+    },
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
     'handlers': {
-        'file': {
+        'console': {
+            'level': 'INFO',
+            'filters': ['require_debug_true'],
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'daemon': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'daemon.log'),
+            'formatter': 'verbose',
+        },
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler',
+            'formatter': 'verbose',
+        },
+        'info': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'info.log'),
+            'formatter': 'heavy',
+        },
+        'access': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'access.log'),
+            'formatter': 'verbose',
         },
     },
+    'root': {
+        'handlers': ['console', 'daemon', ],
+        'level': 'INFO',
+    },
     'loggers': {
-        'statistic': {
-            'handlers': ['file'],
+        'info': {
+            'handlers': ['info', 'mail_admins', ],
             'level': 'INFO',
-            'propagate': True,
+            'formatter': 'heavy',
+        },
+        'django.request': {
+            'handlers': ['access', ],
+            'level': 'INFO',
+            'formatter': 'verbose',
+        },
+        'access': {
+            'handlers': ['access', ],
+            'level': 'INFO',
+            'formatter': 'verbose',
         },
     },
 }

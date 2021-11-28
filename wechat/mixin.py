@@ -15,27 +15,12 @@ from wechatpy.client import WeChatClient
 from wechatpy.oauth import WeChatOAuth, WeChatOAuthException
 from wechatpy.session.redisstorage import RedisStorage
 from redis import Redis
+from manager import wechat_manager
 
 
 class WeChatCommonMixin:
-    wxcfg = settings.WECHAT
-
-    # access token 持久化存储
-    redis_client = Redis.from_url('redis://127.0.0.1:6379/0')
-    session_interface = RedisStorage(
-        redis_client,
-        prefix="wechatpy"
-    )
-
-    client = WeChatClient(appid=wxcfg['app_id'],
-                          secret=wxcfg['app_secret'],
-                          session=session_interface)
-    pay = WeChatPay(appid=wxcfg['app_id'],
-                    sub_appid=wxcfg['app_id'],
-                    api_key=wxcfg['merchant_api_key'],
-                    mch_id=wxcfg['merchant_id'],
-                    mch_cert=wxcfg['merchant_cert'],
-                    mch_key=wxcfg['merchant_key'])
+    client = wechat_manager.get_wechat_client()
+    pay = wechat_manager.get_wechat_pay()
 
 
 class WeChatPayResultMixin(WeChatCommonMixin):
@@ -175,11 +160,13 @@ class OAuthMixin(WeChatCommonMixin):
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
-        self.oauth = WeChatOAuth(app_id=self.wxcfg['app_id'],
-                                 secret=self.wxcfg['app_secret'],
-                                 redirect_uri=self._get_current_uri(),
-                                 scope=self.oauth_scope,
-                                 state='ytg')
+        self.oauth = WeChatOAuth(
+            app_id=settings.WECHAT['app_id'],
+            secret=settings.WECHAT['app_secret'],
+            redirect_uri=self._get_current_uri(),
+            scope='snsapi_base',
+            state='ytg',
+        )
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):

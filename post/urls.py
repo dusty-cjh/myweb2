@@ -10,6 +10,7 @@ urlpatterns = [
     path('support/', views.SupportView.as_view(), name='support'),
 
     path('post/<int:pk>', views.PostDetailView.as_view(), name='post'),
+    path('article/<int:pk>', views.ArticleDetailView.as_view(), name='article'),
 
     path('MP_verify_cnuhJDCblRVDP7Vf.txt', views.wx_verify, name='wx-verify'),
 ]

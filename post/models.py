@@ -2,6 +2,35 @@ from django.db import models
 from django_ckeditor_5.fields import CKEditor5Field
 
 
+class Article(models.Model):
+    STATUS_VISIBLE = 1
+    STATUS_INVISIBLE = 2
+    STATUS = (
+        (STATUS_VISIBLE, '可见'),
+        (STATUS_INVISIBLE, '不可见'),
+    )
+
+    TYPE_MD = 1
+    TYPE_HTML = 2
+    TYPES = (
+        (TYPE_MD, 'markdown'),
+        (TYPE_HTML, 'html'),
+    )
+
+    title = models.CharField(verbose_name='Title', max_length=50)
+    content = models.TextField(verbose_name='Content', blank=False, null=False)
+    content_type = models.PositiveSmallIntegerField(verbose_name='Content Type', choices=TYPES, default=TYPE_MD)
+    author = models.ForeignKey(to='auth.User', on_delete=models.SET_NULL, verbose_name='author', null=True)
+    status = models.PositiveSmallIntegerField(verbose_name='Status', choices=STATUS, default=STATUS_VISIBLE)
+    created_time = models.DateTimeField(verbose_name='Created Time', auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_time']
+
+    def __str__(self):
+        return self.title
+
+
 class PostBase(models.Model):
     STATUS_VISIBLE = 1
     STATUS_INVISIBLE = 2

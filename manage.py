@@ -5,7 +5,7 @@ import sys
 
 
 def main():
-    profile = os.environ.get('MYWEB2_PROFILE', 'develop')
+    profile = os.environ.get('ENV', 'test')
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myweb2.settings.{}'.format(profile))
     try:
         from django.core.management import execute_from_command_line

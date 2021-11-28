@@ -11,6 +11,7 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myweb2.settings')
+profile = os.environ.get('ENV', 'test')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'myweb2.settings.{}'.format(profile))
 
 application = get_asgi_application()
