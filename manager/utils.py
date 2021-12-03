@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 from collections import namedtuple
 from collections.abc import Mapping, MutableSequence
+from django.http import JsonResponse
 
 log = logging.getLogger('info')
 
@@ -57,3 +58,9 @@ def dict_to_namedtuple(name='dict_to_namedtuple'):
         return inner
     return decorator
 
+
+def json_error_response(errmsg, status=400):
+    return JsonResponse({
+        'errcode': status,
+        'errmsg': errmsg,
+    }, status=status)

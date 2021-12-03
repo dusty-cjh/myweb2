@@ -1,7 +1,5 @@
 import os
-import hashlib
 from django import forms
-from ckeditor_uploader.widgets import CKEditorUploadingWidget
 from django.conf import settings
 from django.forms import widgets
 
