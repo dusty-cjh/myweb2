@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'resource.apps.ResourceConfig',
     'shop.apps.ShopConfig',
     'plugins.ckeditor5.apps.Ckeditor5Config',
+    'kademlia.apps.KademliaConfig',
 
     'rest_framework',
     'ckeditor',
@@ -178,7 +179,7 @@ WECHAT = {
     'app_id': 'wx23279c94c52ac9fd',
     'app_secret': '8f783a4be8d36801e201ab170bcacc56',
     'token': 'StSVhLSKDMO3JieDpLKlZjd0VTtT0lKa',
-    'aes_key': 'M88JHVgq1VuNN8CGmvNUgbnHfGhgVHH8gYBhJ6FhcgH',
+    'aes_key': 'M88JHVgq1VuNN8CGmvNUgbnHfGhgVHH8gYBhJ6Fhcg',
     'merchant_id': '1609790020',
     'merchant_api_key': '01234567890123456789012345678901',
     'merchant_key': os.path.join(STATIC_ROOT, 'cert', 'apiclient_key.pem'),

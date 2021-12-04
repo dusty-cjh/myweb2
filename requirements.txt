@@ -7,3 +7,5 @@ coreapi
 Pillow
 simpleui
 cryptography
+pyyaml
+markdown

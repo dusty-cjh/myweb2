@@ -56,4 +56,4 @@ def upload_file(request):
 
 
 class ExampleView(TemplateView):
-    template_name = 'ckeditor5/example.html'
+    template_name = 'ckeditor5/example.md.html'

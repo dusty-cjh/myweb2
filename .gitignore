@@ -3,3 +3,4 @@ static/
 media/
 */migrations/
 dump.rdb
+shop/goods/imgs/

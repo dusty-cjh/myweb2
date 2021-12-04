@@ -1,4 +1,35 @@
++++
+title = "Menu button"
++++
+
+
+---
+layout: post
+title: Blogging Like a Hacker
+---
 # 待实现的需求
+
+<!-- this is
+something that you never ---
+layout: post
+published-on: 1 January 2000
+title: Blogging Like a Boss
+---see -->
+
+<!-- 
+fdsigjrjeigr
+-->
+
+- [x] fjiweojiewg
+- [ ] fjieowjgirejgrejgire
+
+`!> 重点注意`
+
+`?> 一般提示`
+
+[_metadata_:author]:"daveying"
+
+[_metadata_:tags]:'markdown metadata'
 
 A. 预览图编辑：类似微信公众号，可上传并裁剪图片
 
@@ -105,4 +136,11 @@ Order表包含：
 ```shell script
 cd $PROJ_ROOT
 gunicorn myweb2.wsgi:application -w 3 -k gthread -b 127.0.0.1:9090 --max-requests=1024
+```
+
+```yaml
+title: jgriogvjroe
+arguments: feiwgjvoriegjiogjvre
+previews: [fg4g43,g43,g43hg5,3hg43,gt,34h43,h,43g34g,]
+
 ```

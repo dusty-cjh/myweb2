@@ -1,8 +1,11 @@
-import logging
+import logging, re, yaml, json
 from functools import wraps
 from collections import namedtuple
 from collections.abc import Mapping, MutableSequence
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
+from django.core import serializers
+from django.db.models import Model, QuerySet
+from django.forms.models import model_to_dict
 
 log = logging.getLogger('info')
 
@@ -59,8 +62,99 @@ def dict_to_namedtuple(name='dict_to_namedtuple'):
     return decorator
 
 
-def json_error_response(errmsg, status=400):
-    return JsonResponse({
+def _error_response(errmsg, status):
+    return {
         'errcode': status,
-        'errmsg': errmsg,
-    }, status=status)
+        'errmsg': repr(errmsg),
+    }, status & 0x3ff
+
+
+def _response(data, status):
+    # serialize django model
+    if isinstance(data, Model):
+        data = model_to_dict(data)
+
+    # return data
+    data.update({
+        'errcode': status,
+        'errmsg': 'success',
+    })
+
+    return data, status & 0x3ff
+
+
+def json_error_response(errmsg, status=400):
+    data, status = _error_response(errmsg, status)
+    return JsonResponse(data, status=status)
+
+
+def json_response(data, status=200):
+    data, status = _response(data, status)
+    return JsonResponse(data, status=status)
+
+
+def yaml_error_response(errmsg, status=400):
+    data, status = _error_response(errmsg, status)
+    ret = yaml.dump(data)
+    return HttpResponse(ret, content_type='text/yaml', status=status)
+
+
+def yaml_response(data, status=200):
+    data, status = _response(data, status)
+    ret = yaml.dump(data)
+    return HttpResponse(ret, content_type='text/yaml', status=status)
+
+
+class Response(HttpResponse):
+    content_type = 'application/json'
+
+    def __init__(self, status, data=None, errmsg='success', content_type=None, *args, **kwargs):
+        if data is None:
+            data = dict()
+        if content_type is None:
+            content_type = self.content_type
+
+        # update kwargs
+        if status:
+            kwargs['status'] = status & 0x3ff
+        kwargs['content_type'] = content_type
+
+        # prepare response data
+        if isinstance(data, Model):
+            data = model_to_dict(data)
+        data.update({
+            'errcode': status,
+            'errmsg': errmsg,
+        })
+
+        # serialize response
+        if content_type == 'text/yaml':
+            content = yaml.dump(data)
+        else:
+            content = json.dumps(data)
+
+        super().__init__(content=content, *args, **kwargs)
+
+
+class JsonResp(Response):
+    pass
+
+
+class YamlResp(Response):
+    content_type = 'text/yaml'
+
+
+def _parse_data_from_markdown():
+    regexp = re.compile(r'```yaml\s+(.*)```\s*$', flags=re.DOTALL | re.MULTILINE)
+
+    def method(data: str):
+        m = regexp.search(data)
+        if m is None:
+            return data, dict()
+        meta = yaml.safe_load(m.groups()[0])
+        return data[:m.start()], meta
+    return method
+
+
+parse_data_from_markdown = _parse_data_from_markdown()
+

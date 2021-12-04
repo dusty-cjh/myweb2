@@ -12,4 +12,5 @@ urlpatterns = [
 	path('order-create-callback', apis.OrderCreateCallbackAPI.as_view(), name='order-create-callback'),
 	path('order-list/', views.OrderListView.as_view(), name='order-list'),
 	path('order-detail/<int:pk>/', views.OrderDetailView.as_view(), name='order-detail'),
+	path('goods/create_from_file/', views.CreateGoodsView.as_view(), name='goods')
 ]

@@ -15,6 +15,7 @@ class Goods(models.Model):
 	title = models.CharField(verbose_name='标题', max_length=50)
 	preview = models.CharField(verbose_name='商品预览', max_length=200)
 	content = CKEditor5Field(config_name='extends', verbose_name='正文')
+	content_type = models.CharField(max_length=10, default='html')
 	status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_VISIBLE)
 	created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
 	price = models.FloatField(verbose_name='价格')

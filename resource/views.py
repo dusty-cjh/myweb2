@@ -31,16 +31,22 @@ class UploadImageView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def has_permission(self):
-        return self.request.user.is_staff
+        key = settings.WECHAT['aes_key']
+        if key in self.request.FILES:
+            return True
+
+        if self.request.user.is_staff:
+            return True
 
     def post(self, request: HttpRequest):
         if not self.has_permission():
-            return utils.json_error_response(b'have no permission')
+            return utils.json_error_response('have no permission')
 
         files = list(request.FILES.values())
         if len(files) == 0:
             log.warning('upload-image does not receive any image data')
-            return utils.json_error_response(b'upload-image does not receive any image data')
+            return utils.json_error_response('upload-image does not receive any image data')
 
         resp = wechat_manager.upload_image(files[0])
-        return JsonResponse(data=resp)
+        log.info('UploadImageView|response={}'.format(resp))
+        return utils.json_response(data=resp, status=201)
