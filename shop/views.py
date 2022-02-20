@@ -26,7 +26,7 @@ class GoodsDetailView(WeChatCommonMixin, WxViewContextMixin, DetailView):
 
 	def get_object(self, queryset=None):
 		obj = super().get_object(queryset)
-		if obj.content_type == 'markdown':
+		if obj.fmt == 'markdown':
 			exts = ['markdown.extensions.extra', 'markdown.extensions.codehilite', 'markdown.extensions.tables',
 					'markdown.extensions.toc']
 			obj.content = markdown.markdown(obj.content, extensions=exts)

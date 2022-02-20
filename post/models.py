@@ -1,5 +1,4 @@
 from django.db import models
-from django_ckeditor_5.fields import CKEditor5Field
 
 
 class Article(models.Model):
@@ -40,7 +39,7 @@ class PostBase(models.Model):
     )
 
     title = models.CharField(verbose_name='标题', max_length=50)
-    content = CKEditor5Field(config_name='extends', verbose_name='正文')
+    content = models.TextField(verbose_name='正文')
     status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_VISIBLE)
     created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
 

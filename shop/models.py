@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.cache import cache
-from django_ckeditor_5.fields import CKEditor5Field
+# from django_ckeditor_5.fields import CKEditor5Field
 from ckeditor_uploader.fields import RichTextUploadingField
 
 
@@ -14,14 +14,14 @@ class Goods(models.Model):
 
 	title = models.CharField(verbose_name='标题', max_length=50)
 	preview = models.CharField(verbose_name='商品预览', max_length=200)
-	content = CKEditor5Field(config_name='extends', verbose_name='正文')
-	content_type = models.CharField(max_length=10, default='html')
+	content = RichTextUploadingField(verbose_name='正文')
+	fmt = models.CharField(verbose_name='正文格式', max_length=10, default='html', blank=True)
 	status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_VISIBLE)
 	created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
 	price = models.FloatField(verbose_name='价格')
 	nums = models.PositiveIntegerField(verbose_name='库存', default=1)
 	recommend = models.BooleanField(verbose_name='是否可被推荐', default=False)
-
+	#
 	pv = models.PositiveIntegerField(verbose_name='点击量', default=0)
 	uv = models.PositiveIntegerField(verbose_name='浏览量', default=0)
 
