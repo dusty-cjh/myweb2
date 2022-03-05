@@ -7,10 +7,16 @@ from django.core import serializers
 from django.db.models import Model, QuerySet
 from django.forms.models import model_to_dict
 
-log = logging.getLogger('info')
-
 
 class FrozenJson(dict):
+    # base field
+    errcode: int
+    errmsg: str
+
+    # wechat common field
+    url: str
+    media_id: str
+
     def __init__(self, arg=None, name='FrozenJson', ):
         if arg is None:
             arg = dict()
@@ -18,7 +24,7 @@ class FrozenJson(dict):
             arg[key] = self._wrap_element(val)
 
         super().__init__(arg)
-        self.name = name
+        self.__name = name
 
     def __missing__(self, key):
         return None
@@ -30,7 +36,7 @@ class FrozenJson(dict):
         return super().__setattr__(key, self._wrap_element(value))
 
     def __repr__(self):
-        return '{}({})'.format(self.name, ', '.join(['{}={}'.format(key, val) for key, val in self.items()]))
+        return '{}({})'.format(self.__name, ', '.join(['{}={}'.format(key, val) for key, val in self.items()]))
 
     @classmethod
     def _wrap_element(cls, obj):
@@ -55,8 +61,7 @@ def dict_to_namedtuple(name='dict_to_namedtuple'):
                 resp['errmsg'] = 'success'
             except Exception as e:
                 resp['errcode'] = getattr(e, 'errcode', -1)
-                resp['errmsg'] = getattr(e, 'errmsg', 'NONAME ERROR')
-                log.error('{}|{}| args={}, kwargs={}, resp={}'.format(func.__name__, name, args, kwargs, resp))
+                resp['errmsg'] = repr(e)
             return FrozenJson(resp, name)
         return inner
     return decorator

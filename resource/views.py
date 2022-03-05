@@ -48,5 +48,5 @@ class UploadImageView(View):
             return utils.json_error_response('upload-image does not receive any image data')
 
         resp = wechat_manager.upload_image(files[0])
-        log.info('UploadImageView|response={}'.format(resp))
+        request.log.info('resource.UploadImageView.post|response={}'.format(resp))
         return utils.json_response(data=resp, status=201)

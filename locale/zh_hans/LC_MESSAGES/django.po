@@ -1,0 +1,153 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-03-05 15:06+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: myweb2/settings.py:113
+msgid "Chinese"
+msgstr "简体中文"
+
+#: myweb2/settings.py:114
+msgid "English"
+msgstr "英语"
+
+#: shop/admin.py:16
+msgid "Inventory"
+msgstr "库存"
+
+#: shop/admin.py:21
+msgid "Stockout"
+msgstr "缺货"
+
+#: shop/admin.py:22
+msgid "Stock"
+msgstr "库存"
+
+#: shop/admin.py:23
+msgid "Stock less than 10"
+msgstr "库存少于10"
+
+#: shop/admin.py:24
+msgid "Sufficient stock"
+msgstr "库存充足"
+
+#: shop/admin.py:41
+msgid "Visible in main page"
+msgstr "主页可见"
+
+#: shop/admin.py:46
+msgid "Invisible"
+msgstr "不可见"
+
+#: shop/admin.py:47
+msgid "Visible"
+msgstr "可见"
+
+#: shop/admin.py:67
+#, fuzzy
+#| msgid "Order Info"
+msgid "Edit Info"
+msgstr "订单信息"
+
+#: shop/admin.py:70
+msgid "Config"
+msgstr "配置"
+
+#: shop/admin.py:73
+msgid "Statistics"
+msgstr "统计数据"
+
+#: shop/admin.py:81
+msgid "Link of goods"
+msgstr "商品链接"
+
+#: shop/admin.py:89
+msgid "Please pick on first"
+msgstr "请先选中"
+
+#: shop/admin.py:96
+msgid "Updated"
+msgstr "已更新"
+
+#: shop/admin.py:100
+msgid "Recommended"
+msgstr "被推荐的"
+
+#: shop/admin.py:101
+msgid "Unrecommended"
+msgstr "不被推荐的"
+
+#: shop/admin.py:103
+msgid "Change recommend strategy"
+msgstr "改变推荐策略"
+
+#: shop/admin.py:113
+msgid "Confirm to submit"
+msgstr "确认提交"
+
+#: shop/admin.py:114
+msgid "Cancel"
+msgstr "取消"
+
+#: shop/admin.py:142
+#, fuzzy
+#| msgid "Please pick on first"
+msgid "Please pitch on items first"
+msgstr "请先选中"
+
+#: shop/admin.py:162
+msgid "applied for {} refunds, permitted {} refunds"
+msgstr "申请退款{}笔，成功{}笔"
+
+#: shop/admin.py:164
+msgid "Refund"
+msgstr "退款"
+
+#: shop/models.py:32
+msgid "extra_data"
+msgstr "其他数据"
+
+#: shop/models.py:124
+msgid "Current no logistics information"
+msgstr "当前无物流信息"
+
+#: shop/serializers.py:57
+msgid "invalid_format|user-address is not a json-string"
+msgstr "不合法的格式|用户地址不是 json 字符串"
+
+#: templates/shop/order-create.html:6
+#, fuzzy
+#| msgid "Order Detail"
+msgid "Order detail"
+msgstr "订单详情"
+
+#: templates/shop/order-detail.html:4
+msgid "Order Detail"
+msgstr "订单详情"
+
+#: templates/shop/order-detail.html:166
+msgid "Order Info"
+msgstr "订单信息"
+
+#: templates/shop/order-detail.html:181
+msgid "Contact"
+msgstr "联系卖家"
+
+#: templates/shop/order-detail.html:187
+msgid "Counseling"
+msgstr "拨打电话"

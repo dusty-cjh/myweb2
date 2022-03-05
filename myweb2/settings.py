@@ -11,13 +11,14 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 """
 
 import os
+from django.utils.translation import gettext_lazy as _
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
-ENV = os.getenv('env', 'test')
+ENV = os.environ.get('env', 'test')
 if ENV == 'live':
     DEBUG = False
 else:
@@ -56,11 +57,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'common.middlewares.AccessLogMiddleware',
     'post.middleware.UserIDMiddleware',
     'config.middlewares.CorsMiddleWare',    # CORS
 ]
@@ -106,8 +109,15 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
-
+LANGUAGES = [
+    ('zh-hans', _('Chinese')),
+    ('en', _('English')),
+]
 LANGUAGE_CODE = 'zh-hans'
+
+LOCALE_PATHS = (
+    os.path.join(BASE_DIR, 'locale'),
+)
 
 TIME_ZONE = 'Asia/Shanghai'
 
@@ -145,14 +155,22 @@ DATABASES = {
 DATABASES = DATABASES[ENV]
 
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+    'test': {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    },
+    'live': {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            "LOCATION": "redis://127.0.0.1:6379/1",
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            },
         },
-    }
+    },
 }
+CACHES = CACHES[ENV]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -197,11 +215,12 @@ WECHAT = {
     'app_id': 'wx23279c94c52ac9fd',
     'app_secret': '8f783a4be8d36801e201ab170bcacc56',
     'token': 'StSVhLSKDMO3JieDpLKlZjd0VTtT0lKa',
-    'aes_key': 'M88JHVgq1VuNN8CGmvNUgbnHfGhgVHH8gYBhJ6Fhcg',
+    'aes_key': 'PSPvTKY8KbvHMnTlUBNdwOw5YYjID6CUPHbiIhfqH5b==',
     'merchant_id': '1609790020',
     'merchant_api_key': '01234567890123456789012345678901',
     'merchant_key': os.path.join(STATIC_ROOT, 'cert', 'apiclient_key.pem'),
     'merchant_cert': os.path.join(STATIC_ROOT, 'cert', 'apiclient_cert.pem'),
+    'is_crypto': True,
 }
 
 LOGGING = {
@@ -209,15 +228,27 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '{levelname}|{asctime}|{module}|{message}',
             'style': '{',
         },
         'simple': {
-            'format': '{levelname} {message}',
+            'format': '{levelname}|{message}',
             'style': '{',
         },
         'heavy': {
-            'format': '{levelname} {asctime} {pathname} {lineno} {message}',
+            'format': '{levelname}|{asctime}|{pathname}:{lineno}|{message}',
+            'style': '{',
+        },
+        'error': {
+            'format': '{asctime}|{pathname}:{lineno}|{message}',
+            'style': '{',
+        },
+        'access': {
+            'format': '{levelname}|{asctime}|{message}',
+            'style': '{',
+        },
+        'data': {
+            'format': '{asctime}|{message}',
             'style': '{',
         },
     },
@@ -250,12 +281,24 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'log', 'info.log'),
             'formatter': 'heavy',
         },
+        'error': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'error.log'),
+            'formatter': 'error',
+        },
         'access': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'access.log'),
-            'formatter': 'verbose',
+            'formatter': 'access',
         },
+        'data': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
+            'formatter': 'data',
+        }
     },
     'root': {
         'handlers': ['console', 'daemon', ],
@@ -275,7 +318,17 @@ LOGGING = {
         'access': {
             'handlers': ['access', ],
             'level': 'INFO',
-            'formatter': 'verbose',
+            'formatter': 'access',
+            'propagate': False,
+        },
+        'error': {
+            'handlers': ['error', ],
+            'propagate': False,
+        },
+        # to collect user statistics
+        'data': {
+            'handlers': ['data', ],
+            'propagate': False,
         },
     },
 }

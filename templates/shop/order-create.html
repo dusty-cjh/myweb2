@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
+{% load i18n %}
 
 {% block title %}
-{{ object.name }}
+    {% translate 'Order detail' %}
 {% endblock title %}
 
 {% block main %}
@@ -117,10 +118,14 @@
       data: {
           form_errors: null,
           paying: false,
+  {% if address %}
+          address: {% autoescape off %}{{ address }}{% endautoescape %},
+  {% else %}
           address: {
-            userName: null, postalCode: null, provinceName: null, cityName: null,
+              userName: null, postalCode: null, provinceName: null, cityName: null,
               countryName: null, detailInfo: null, nationalCode: null, telNumber: null,
           },
+  {% endif %}
       },
       delimiters: ['[[', ']]'],
       methods: {

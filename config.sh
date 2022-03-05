@@ -11,6 +11,7 @@ function cfg_help(){
   echo "    myweb2       Will open the myweb2.conf"
   echo "    reload       Will reload nginx configuration"
   echo "    -new [file]  Will create a new nginx config in $nginx_conf_root"
+  echo "    runserver    Will start server by gunicorn in daemon process"
 }
 
 
@@ -37,6 +38,9 @@ reload)
   else
     echo "Please enter a new config file name"
   fi
+  ;;
+runserver)
+  (gunicorn myweb2.wsgi:application -w 3 -k gthread -b 127.0.0.1:9090 --max-requests=1024 &)
   ;;
 *)
   echo "You can use bellow:"

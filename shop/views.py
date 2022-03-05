@@ -1,4 +1,4 @@
-import time, markdown
+import time, markdown, json
 import logging
 from django.views.generic import ListView, TemplateView, DetailView, View
 from django.views.decorators.csrf import csrf_exempt
@@ -19,6 +19,10 @@ class IndexView(WeChatCommonMixin, WxViewContextMixin, ListView):
 	template_name = 'shop/index.html'
 	queryset = Goods.objects.filter(status=Goods.STATUS_VISIBLE)
 
+	def get(self, request, *args, **kwargs):
+		request.log.data('view|shop-index')
+		return super().get(request, *args, **kwargs)
+
 
 class GoodsDetailView(WeChatCommonMixin, WxViewContextMixin, DetailView):
 	template_name = 'shop/detail.html'
@@ -34,6 +38,7 @@ class GoodsDetailView(WeChatCommonMixin, WxViewContextMixin, DetailView):
 		return obj
 
 	def get(self, request, *args, **kwargs):
+		request.log.data('view|goods-detail')
 		response = super().get(request, *args, **kwargs)
 		if 200 <= response.status_code < 300:
 			Goods.handle_visit(request, self.object.id)
@@ -45,11 +50,33 @@ class OrderCreateView(OAuthMixin, WxViewContextMixin, DetailView):
 	template_name = 'shop/order-create.html'
 	queryset = Goods.objects.filter(status=Goods.STATUS_VISIBLE)
 
+	def get_address(self):
+		addr = self.request.session.get('user_address', None)
+		if addr is None:
+			order = Order.objects.filter(user=self.request.user).order_by('-created_time').first()
+			log.info('get-user-order:{}'.format(order))
+			if order is not None:
+				try:
+					addr = json.loads(order.address)
+				except Exception as e:
+					log.warning('shop/order-create.html|get user address failed, error={}'.format(repr(e)))
+				else:
+					self.request.session['user_address'] = addr
+		return addr
+
+	def get_context_data(self, **kwargs):
+		self.request.log.data('view|order-create')
+		ctx = super().get_context_data(**kwargs)
+		ctx['address'] = self.get_address()
+		log.info('context|{}'.format(ctx))
+		return ctx
+
 
 class OrderDetailView(OAuthMixin, WxViewContextMixin, DetailView):
 	template_name = 'shop/order-detail.html'
 
 	def get_queryset(self):
+		self.request.log.data('view|order-detail')
 		return Order.objects.filter(user=self.request.user)
 
 
@@ -58,6 +85,7 @@ class OrderListView(OAuthMixin, WxViewContextMixin, ListView):
 	template_name = 'shop/order-list.html'
 
 	def get_queryset(self):
+		self.request.log.data('view|order-list')
 		qs = Order.objects.filter(user=self.request.user)
 		return qs
 

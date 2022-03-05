@@ -3,25 +3,27 @@ from django.urls import reverse
 from django.db.models import Q
 from django.utils.html import format_html
 from django.http.response import JsonResponse
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as _
 from simpleui.admin import AjaxAdmin
 from wechatpy.pay.api import WeChatRefund
 
 from wechat.mixin import WeChatCommonMixin
 from .models import Goods, Order, Appraise
+from .forms import OrderModelForm, GoodsModelForm
 
 
 class GoodsStockFilter(admin.SimpleListFilter):
-    title = _("库存")
+    title = _("Inventory")
     parameter_name = "stock"
 
     def lookups(self, request, model_admin):
-        return (
-            ('0', _("缺货")),
-            ('1', _("有货")),
-            ('10', _("库存少于10")),
-            ('>=10', _("库存充裕")),
+        ret = (
+            ('0', _("Stockout")),
+            ('1', _("Stock")),
+            ('10', _("Stock less than 10")),
+            ('>=10', _("Sufficient stock")),
         )
+        return ret
 
     def queryset(self, request, queryset):
         qs = Goods.objects.all()
@@ -37,13 +39,13 @@ class GoodsStockFilter(admin.SimpleListFilter):
 
 
 class GoodsVisibleFilter(admin.SimpleListFilter):
-    title = _("首页可见")
+    title = _("Visible in main page")
     parameter_name = "mainpage_visible"
 
     def lookups(self, request, model_admin):
         return (
-            ('0', _("不可见")),
-            ('1', _("可见")),
+            ('0', _("Invisible")),
+            ('1', _("Visible")),
         )
 
     def queryset(self, request, queryset):
@@ -60,11 +62,24 @@ class GoodsAdmin(AjaxAdmin):
     list_filter = (GoodsStockFilter, GoodsVisibleFilter, )
     actions = ['act_recommend', ]
     list_per_page = 30
+    form = GoodsModelForm
+    readonly_fields = ('html_preview_image', 'created_time',)
+    fieldsets = (
+        (_('Edit Info'), {
+            'fields': ('title', 'preview', 'html_preview_image', 'fmt', 'content',),
+        }),
+        (_('Config'), {
+            'fields': ('created_time', 'status', 'price', 'nums', 'recommend',),
+        }),
+        (_('Statistics'), {
+            'fields': ('pv', 'uv',),
+        }),
+    )
 
     def link(self, obj):
         url = reverse("shop:goods", args=(obj.id,))
-        return format_html("<a href='{0}'>{0}</a>".format(url))
-    link.short_description = '链接'
+        return format_html('<a href="{}"><img src="{}" alt="{}" width="40px;"'.format(url, obj.preview, url))
+    link.short_description = _('Link of goods')
 
     def act_recommend(self, request, queryset):
         # 筛选选中的queryset
@@ -72,21 +87,21 @@ class GoodsAdmin(AjaxAdmin):
         if not data.get('_selected'):
             return JsonResponse(data={
                 'status': 'error',
-                'msg': '请先选中数据！'
+                'msg': _('Please pick on first')
             })
 
         # 更改状态
         queryset.update(recommend=int(self.act_recommend.mapping[data['recommend']]))
         return JsonResponse({
             'status': 'success',
-            'msg': '修改成功！',
+            'msg': _('Updated'),
         })
 
     act_recommend.mapping = {
-        '可被推荐': '1',
-        '不可推荐': '0',
+        _('Recommended'): '1',
+        _('Unrecommended'): '0',
     }
-    act_recommend.short_description = '更改推荐'
+    act_recommend.short_description = _('Change recommend strategy')
     act_recommend.type = 'success'
     act_recommend.enable = True
     act_recommend.layer = {
@@ -96,8 +111,8 @@ class GoodsAdmin(AjaxAdmin):
             'label': '',
             'options': [{'key': key, 'label': val} for val, key in act_recommend.mapping.items()],
         }, ],
-        'confirm_button': '确认提交',
-        'cancel_button': '取消',
+        'confirm_button': _('Confirm to submit'),
+        'cancel_button': _('Cancel'),
     }
 
 
@@ -109,6 +124,7 @@ class AppraiseAdmin(AjaxAdmin):
 @admin.register(Order)
 class OrderAdmin(AjaxAdmin):
     list_display = 'id out_trade_no user goods nums fee payed_ status created_time'.split()
+    form = OrderModelForm
     actions = 'act_refund'.split()
 
     def payed_(self, obj):
@@ -124,7 +140,7 @@ class OrderAdmin(AjaxAdmin):
         if len(queryset) == 0:
             return JsonResponse(data={
                 'status': 'error',
-                'msg': '请先选中数据！'
+                'msg': _('Please pitch on items first')
             })
 
         # parse request data
@@ -141,9 +157,9 @@ class OrderAdmin(AjaxAdmin):
                     order.save()
                     success_count += 1
 
-                    # 向用户发送退款成功通知
+                    # send notification of success refunding for user
                     #
                     #
-        self.message_user(request, '申请退款{}笔，成功退款{}笔。'.format(queryset.count(), success_count))
+        self.message_user(request, _('applied for {} refunds, permitted {} refunds').format(queryset.count(), success_count)),
 
-    act_refund.short_description = '退款'
+    act_refund.short_description = _('Refund')

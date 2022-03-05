@@ -1,5 +1,9 @@
+import json
 from django.db import models
 from django.core.cache import cache
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils.translation import gettext as _
 # from django_ckeditor_5.fields import CKEditor5Field
 from ckeditor_uploader.fields import RichTextUploadingField
 
@@ -17,13 +21,15 @@ class Goods(models.Model):
 	content = RichTextUploadingField(verbose_name='正文')
 	fmt = models.CharField(verbose_name='正文格式', max_length=10, default='html', blank=True)
 	status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_VISIBLE)
-	created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
+	created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True, editable=False)
 	price = models.FloatField(verbose_name='价格')
 	nums = models.PositiveIntegerField(verbose_name='库存', default=1)
 	recommend = models.BooleanField(verbose_name='是否可被推荐', default=False)
 	#
 	pv = models.PositiveIntegerField(verbose_name='点击量', default=0)
 	uv = models.PositiveIntegerField(verbose_name='浏览量', default=0)
+	#
+	extra_data = models.TextField(verbose_name=_('extra_data'))
 
 	class Meta:
 		verbose_name = verbose_name_plural = '商品'
@@ -62,6 +68,13 @@ class Goods(models.Model):
 		elif increase_uv:
 			Goods.objects.filter(pk=pk).update(uv=models.F('uv') + 1)
 
+	@property
+	def html_preview_image(self):
+		if not self.id:
+			return ''
+		url = reverse("shop:goods", args=(self.id,))
+		return format_html('<a href="{}"><img src="{}" alt="{}" width="400px;" /></a>'.format(url, self.preview, url))
+
 
 class Order(models.Model):
 	STATUS_CREATED = 0
@@ -89,6 +102,7 @@ class Order(models.Model):
 	status = models.PositiveSmallIntegerField(verbose_name='状态', choices=STATUS, default=STATUS_CREATED)
 	refund_reason = models.CharField(max_length=100, default='', blank=True, verbose_name='退款原因')
 	created_time = models.DateTimeField(verbose_name='创建时间', auto_now_add=True)
+	extra_data = models.TextField(verbose_name='extra_data')
 
 	class Meta:
 		verbose_name = verbose_name_plural = '订单'
@@ -97,6 +111,17 @@ class Order(models.Model):
 	@property
 	def status_display(self):
 		return self.get_status_display()
+
+	@property
+	def logistics_information(self):
+		data = getattr(self, '_extra_data', None)
+		if data is None:
+			try:
+				data = json.loads(self.extra_data)
+			except json.JSONDecodeError:
+				data = dict()
+			setattr(self, '_extra_data', data)
+		return data.get('logistics_information', _('Current no logistics information'))
 
 
 class Appraise(models.Model):

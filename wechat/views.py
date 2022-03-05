@@ -7,10 +7,10 @@ from django.contrib.auth.models import User
 from django.views.generic import View, TemplateView
 from django.http.response import HttpResponse, HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
-from wechatpy import parse_message
 from wechatpy.replies import create_reply, TextReply, EmptyReply, ImageReply, TransferCustomerServiceReply
 from wechatpy.oauth import WeChatOAuth
 
+from manager import wechat_manager
 from .mixin import OAuthMixin, WeChatPayResultMixin
 from .models import Retail, WxAutoReply
 from .decorators import check_signature
@@ -121,7 +121,7 @@ class IndexView(TemplateView):
     @check_signature
     def post(self, request, *args, **kwargs):
         reply = EmptyReply()
-        msg = parse_message(request.body)
+        msg = wechat_manager.parse_wechat_message(request)
 
         handle = getattr(self, msg.type, None)
         if handle:

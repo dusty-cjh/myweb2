@@ -1,14 +1,13 @@
-import time
+import time, json
 import logging
 from django.urls import reverse
+from django.utils.translation import gettext as _
 from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from wechat.mixin import WeChatCommonMixin
 from manager import wechat_manager
 from .models import Goods, Order, Appraise
-
-log = logging.getLogger('info')
 
 
 class GoodsSerializer(serializers.ModelSerializer):
@@ -26,6 +25,7 @@ class GoodsSerializer(serializers.ModelSerializer):
 class OrderSerializer(WeChatCommonMixin, serializers.ModelSerializer):
     params = None
     user = serializers.PrimaryKeyRelatedField(read_only=True)
+    extra_data = serializers.JSONField(read_only=True)
 
     class Meta:
         model = Order
@@ -47,12 +47,20 @@ class OrderSerializer(WeChatCommonMixin, serializers.ModelSerializer):
             'attach': str(obj.id),
         }
         self.params = wechat_manager.create_js_prepay_order(**kwargs)
-        log.info('wechat create prepay order|kwargs=({})|resp={}'.format(kwargs, self.params))
+        request.log.info('shop.OrderSerializer.create|kwargs={}|return={}', kwargs, self.params)
+        request.log.data('api|order-create|data={}', validated_data)
+
+        # save recent used address of user to session
+        try:
+            request.session['user_address'] = json.loads(validated_data['address'])
+        except json.JSONDecodeError:
+            raise ValidationError(_('invalid_format|user-address is not a json-string'))
+
         return obj
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
-        if not self.params is None:
+        if self.params is not None:
             rep.update(self.params)
         return rep
 
@@ -62,3 +70,8 @@ class AppraiseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Appraise
         fields = '__all__'
+
+    def create(self, validated_data):
+        request = self.context['request']
+        request.log.data('api|appraise-create|data={}', validated_data)
+        return super().create(validated_data)
