@@ -309,6 +309,7 @@ LOGGING = {
             'handlers': ['info', 'mail_admins', ],
             'level': 'INFO',
             'formatter': 'heavy',
+            'propagate': False,
         },
         'django.request': {
             'handlers': ['access', ],

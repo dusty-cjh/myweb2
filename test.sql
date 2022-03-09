@@ -28,3 +28,15 @@ WHERE
     ba.bank_name = ''
 AND
     ba.bank_name_id=bn.id;
+
+-- fixing bannkaccount_tab -> bank_name & bank_name_id
+UPDATE bankaccount_tab as ba, bank_name_tab as bn
+SET ba.bank_name=bn.bank_name
+WHERE ba.status<>6 AND ba.type<>-1 AND bn.id=ba.bank_name_id;
+
+UPDATE bankaccount_tab as ba, bank_name_tab as bn
+SET ba.bank_name_id=bn.bank_name
+WHERE ba.status<>6 AND ba.type<>-1 AND bn.bank_name=ba.bank_name;
+-- others bank_name_id & bank_name which is either not in bank_name_tab need to be fixed one by one
+
+--  fixing

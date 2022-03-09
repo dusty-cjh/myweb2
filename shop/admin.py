@@ -5,9 +5,8 @@ from django.utils.html import format_html
 from django.http.response import JsonResponse
 from django.utils.translation import gettext as _
 from simpleui.admin import AjaxAdmin
-from wechatpy.pay.api import WeChatRefund
 
-from wechat.mixin import WeChatCommonMixin
+from manager import wechat_manager
 from .models import Goods, Order, Appraise
 from .forms import OrderModelForm, GoodsModelForm
 
@@ -125,7 +124,7 @@ class AppraiseAdmin(AjaxAdmin):
 class OrderAdmin(AjaxAdmin):
     list_display = 'id out_trade_no user goods nums fee payed_ status created_time'.split()
     form = OrderModelForm
-    actions = 'act_refund'.split()
+    actions = 'act_refund act_redpack'.split()
 
     def payed_(self, obj):
         return str(round(obj.payed / 100, 2))
@@ -145,13 +144,12 @@ class OrderAdmin(AjaxAdmin):
 
         # parse request data
         success_count = 0
-        refund = WeChatRefund(client=WeChatCommonMixin.pay)
         for order in queryset:
             if order.out_trade_no and order.payed != 0:
                 refund_fee = round(order.payed)
-                res = refund.apply(total_fee=refund_fee, refund_fee=refund_fee,
-                                   out_trade_no=order.out_trade_no, out_refund_no=order.out_trade_no)
-                if res['return_code'] == 'SUCCESS':
+                res = wechat_manager.wechatpay_refund(refund_fee, order.out_trade_no)
+                request.log.info('shop.OrderAdmin.act_refund|{}', res)
+                if res.return_code == 'SUCCESS':
                     order.payed = 0
                     order.status = Order.STATUS_REFUND
                     order.save()
@@ -161,5 +159,17 @@ class OrderAdmin(AjaxAdmin):
                     #
                     #
         self.message_user(request, _('applied for {} refunds, permitted {} refunds').format(queryset.count(), success_count)),
-
     act_refund.short_description = _('Refund')
+
+    def act_redpack(self, request, queryset):
+        # check select data
+        if len(queryset) == 0:
+            return JsonResponse(data={
+                'status': 'error',
+                'msg': _('Please pitch on items first')
+            })
+
+        resp = wechat_manager.wechatpay_redpack(queryset[0].user.username, 10)
+        request.log.info('shop.OrderAdmin.act_redpack|{}', resp)
+        self.message_user(request, _('Sended red packet success'))
+    act_redpack.short_description = _('Send redpack')
