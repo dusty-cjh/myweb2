@@ -7,6 +7,8 @@ from django.core import serializers
 from django.db.models import Model, QuerySet
 from django.forms.models import model_to_dict
 
+from common.constants import ErrCode, ErrMsg
+
 
 class FrozenJson(dict):
     # base field
@@ -60,11 +62,39 @@ def dict_to_namedtuple(name='dict_to_namedtuple'):
                 resp['errcode'] = 0
                 resp['errmsg'] = 'success'
             except Exception as e:
-                resp['errcode'] = getattr(e, 'errcode', -1)
+                resp['errcode'] = getattr(e, 'errcode', ErrCode.SUCCESS)
                 resp['errmsg'] = repr(e)
             return FrozenJson(resp, name)
         return inner
     return decorator
+
+
+def async_dict_to_namedtuple(name='dict_to_namedtuple'):
+    def decorator(func):
+        @wraps(func)
+        async def inner(*args, **kwargs):
+            resp = {}
+            try:
+                resp = await func(*args, **kwargs)
+                resp['errcode'] = 0
+                resp['errmsg'] = 'success'
+            except Exception as e:
+                resp['errcode'] = getattr(e, 'errcode', ErrCode.SUCCESS)
+                resp['errmsg'] = repr(e)
+            return FrozenJson(resp, name)
+        return inner
+    return decorator
+
+
+def error_recovery(func):
+    @wraps(func)
+    async def wrap(*args, **kwargs):
+        try:
+            resp = await func(*args, **kwargs)
+        except OSError as e:
+            return error_response(ErrCode.DHT_SOCK_CLOSED, repr(e))
+        return resp
+    return wrap
 
 
 def _error_response(errmsg, status):
@@ -163,3 +193,9 @@ def _parse_data_from_markdown():
 
 parse_data_from_markdown = _parse_data_from_markdown()
 
+
+def error_response(errcode, errmsg='', status=200):
+    return {
+        'errcode': errcode,
+        'errmsg': ErrMsg.get(errcode, ErrMsg[ErrCode.UNKNOWN]) + ('' if not errmsg else f'|{errmsg}')
+    }

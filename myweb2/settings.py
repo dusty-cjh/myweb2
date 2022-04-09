@@ -40,12 +40,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 'channels',
     'wechat.apps.WechatConfig',
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
     'collect.apps.CollectConfig',
     'resource.apps.ResourceConfig',
     'shop.apps.ShopConfig',
+    'decentralization.apps.DecentralizationConfig',
 
     'rest_framework',
     'ckeditor',
@@ -130,6 +132,16 @@ USE_TZ = True
 # AUTH_USER_MODEL = 'user.MyUser' # 在源码中修改
 
 DOMAIN = 'hdcjh.xyz'
+
+# ASGI_APPLICATION = 'myweb2.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
@@ -298,7 +310,13 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
             'formatter': 'data',
-        }
+        },
+        'krpc': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'krpc.log'),
+            'formatter': 'access',
+        },
     },
     'root': {
         'handlers': ['console', 'daemon', ],
@@ -328,6 +346,11 @@ LOGGING = {
         # to collect user statistics
         'data': {
             'handlers': ['data', ],
+            'propagate': False,
+        },
+        # krpc log
+        'krpc': {
+            'handlers': ['krpc', ],
             'propagate': False,
         },
     },
