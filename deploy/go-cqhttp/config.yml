@@ -19,7 +19,7 @@ account: # 账号相关
 heartbeat:
   # 心跳频率, 单位秒
   # -1 为关闭心跳
-  interval: 5
+  interval: -1
 
 message:
   # 上报数据类型
@@ -102,7 +102,7 @@ servers:
       middlewares:
         <<: *default # 引用默认中间件
       post:           # 反向HTTP POST地址列表
-        - url: 'localhost:9090'                # 地址
+        - url: 'http://localhost:9090/mybot/'                # 地址
           secret: 'cjh'             # 密钥
           max-retries: 3         # 最大重试，0 时禁用
           retries-interval: 1500 # 重试时间，单位毫秒，0 时立即

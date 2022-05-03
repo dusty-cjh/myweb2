@@ -1,0 +1,44 @@
+[2022-05-03 13:47:31] [WARNING]: 警告: 配置文件内的QQ号 (775762961) 与缓存内的QQ号 (1157603107) 不相同 
+[2022-05-03 13:47:31] [WARNING]: 1. 使用会话缓存继续. 
+[2022-05-03 13:47:31] [WARNING]: 2. 删除会话缓存并重启. 
+[2022-05-03 13:47:31] [WARNING]: 请选择: (5秒后自动选1) 
+[2022-05-03 13:47:53] [ERROR]: Protocol -> parse incoming packet error: session expired 
+[2022-05-03 13:47:53] [WARNING]: Bot已离线: session expired 
+[2022-05-03 13:47:56] [WARNING]: 将在 3 秒后尝试重连. 重连次数：2/0 
+[2022-05-03 13:47:59] [WARNING]: 尝试重连... 
+[2022-05-03 13:48:00] [WARNING]: 快速重连失败: exchange_emp failed: 15 
+[2022-05-03 13:48:00] [WARNING]: 快速重连失败, 尝试普通登录. 这可能是因为其他端强行T下线导致的. 
+[2022-05-03 13:48:00] [ERROR]: Protocol -> parse incoming packet error: session expired 
+[2022-05-03 13:48:01] [ERROR]: Protocol -> parse incoming packet error: session expired 
+[2022-05-03 13:48:23] [FATAL]: 遇到错误: Packet timed out 
+[2022-05-03 15:15:39] [WARNING]: 警告: 心跳功能已关闭，若非预期，请检查配置文件。 
+[2022-05-03 15:21:51] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 1 次重试 
+[2022-05-03 15:21:54] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 2 次重试 
+[2022-05-03 15:21:56] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 1 次重试 
+[2022-05-03 15:21:58] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 3 次重试 
+[2022-05-03 15:21:59] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 2 次重试 
+[2022-05-03 15:22:02] [WARNING]: 上报 Event 数据 {"anonymous":null,"font":0,"group_id":1143835437,"message":"但是我看那个流程要求手机也要开着视频，还有摆放要求？","message_id":1672666910,"message_seq":257209,"message_type":"group","post_type":"message","raw_message":"但是我看那个流程要求手机也要开着视频，还有摆放要求？","self_id":775762961,"sender":{"age":0,"area":"","card":"","level":"","nickname":"タカミチ","role":"member","sex":"unknown","title":"","user_id":1826350199},"sub_type":"normal","time":1651562508,"user_id":1826350199}
+ 到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 停止上报：已达重试上线 
+[2022-05-03 15:22:03] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 3 次重试 
+[2022-05-03 15:22:07] [WARNING]: 上报 Event 数据 {"group_id":1143835437,"honor_type":"talkative","notice_type":"notify","post_type":"notice","self_id":775762961,"sub_type":"honor","time":1651562513,"user_id":2807478214}
+ 到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 停止上报：已达重试上线 
+[2022-05-03 16:36:14] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 1 次重试 
+[2022-05-03 16:41:33] [WARNING]: 处理群系统消息失败: 消息 1651394254484184 不存在. 
+[2022-05-03 16:44:26] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": context deadline exceeded (Client.Timeout exceeded while awaiting headers) 将进行第 1 次重试 
+[2022-05-03 16:44:32] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": context deadline exceeded (Client.Timeout exceeded while awaiting headers) 将进行第 2 次重试 
+[2022-05-03 16:44:39] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": context deadline exceeded (Client.Timeout exceeded while awaiting headers) 将进行第 3 次重试 
+[2022-05-03 16:44:45] [WARNING]: 上报 Event 数据 {"comment":"问题：学号？姓名？必填\n答案：don't","flag":"1651567460898263","group_id":645125440,"post_type":"request","request_type":"group","self_id":775762961,"sub_type":"add","time":1651567461,"user_id":1157603107}
+ 到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": context deadline exceeded (Client.Timeout exceeded while awaiting headers) 停止上报：已达重试上线 
+[2022-05-03 16:53:18] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": read tcp 127.0.0.1:1541->127.0.0.1:9090: wsarecv: An existing connection was forcibly closed by the remote host. 将进行第 1 次重试 
+[2022-05-03 16:53:22] [WARNING]: 上报 Event 数据到 http://localhost:9090/mybot/ 失败: Post "http://localhost:9090/mybot/": dial tcp [::1]:9090: connectex: No connection could be made because the target machine actively refused it. 将进行第 2 次重试 
+[2022-05-03 16:56:25] [WARNING]: 警告: 配置文件内的QQ号 (1157603107) 与缓存内的QQ号 (775762961) 不相同 
+[2022-05-03 16:56:25] [WARNING]: 1. 使用会话缓存继续. 
+[2022-05-03 16:56:25] [WARNING]: 2. 删除会话缓存并重启. 
+[2022-05-03 16:56:25] [WARNING]: 请选择: (5秒后自动选1) 
+[2022-05-03 16:56:32] [ERROR]: Protocol -> parse incoming packet error: session expired 
+[2022-05-03 16:56:32] [WARNING]: Bot已离线: session expired 
+[2022-05-03 16:56:35] [WARNING]: 将在 3 秒后尝试重连. 重连次数：2/0 
+[2022-05-03 16:56:38] [WARNING]: 尝试重连... 
+[2022-05-03 16:56:38] [WARNING]: 快速重连失败: exchange_emp failed: 15 
+[2022-05-03 16:56:38] [WARNING]: 快速重连失败, 尝试普通登录. 这可能是因为其他端强行T下线导致的. 
+[2022-05-03 16:57:02] [FATAL]: 遇到错误: Packet timed out 

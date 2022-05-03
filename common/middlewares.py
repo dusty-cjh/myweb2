@@ -1,5 +1,6 @@
 import logging, uuid
 from typing import Any, MutableMapping, Tuple
+from django.http.request import HttpRequest
 
 from django.http.request import HttpRequest
 
@@ -83,3 +84,10 @@ class AccessLogMiddleware:
         if id is None:
             id = uuid.uuid4().hex
         return str(id)
+
+
+def get_logger(request: HttpRequest) -> LoggingContextAdapter:
+    logger = getattr(request, 'log')
+    if not logger:
+        raise AttributeError('common.get_logger|req obj has no log attr, check whether added AccessLogMiddleware')
+    return logger

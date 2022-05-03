@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'collect.apps.CollectConfig',
     'resource.apps.ResourceConfig',
     'shop.apps.ShopConfig',
+    'mybot.apps.MybotConfig',
 
     'rest_framework',
     'ckeditor',
@@ -235,6 +236,10 @@ LOGGING = {
             'format': '{levelname}|{message}',
             'style': '{',
         },
+        'info': {
+            'format': '{levelname}|{asctime}|{message}',
+            'style': '{',
+        },
         'heavy': {
             'format': '{levelname}|{asctime}|{pathname}:{lineno}|{message}',
             'style': '{',
@@ -279,25 +284,29 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'info.log'),
-            'formatter': 'heavy',
+            'formatter': 'info',
+            'encoding': 'utf8'
         },
         'error': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'error.log'),
             'formatter': 'error',
+            'encoding': 'utf8'
         },
         'access': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'access.log'),
             'formatter': 'access',
+            'encoding': 'utf8'
         },
         'data': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
             'formatter': 'data',
+            'encoding': 'utf8'
         }
     },
     'root': {
@@ -308,7 +317,7 @@ LOGGING = {
         'info': {
             'handlers': ['info', 'mail_admins', ],
             'level': 'INFO',
-            'formatter': 'heavy',
+            'formatter': 'info',
             'propagate': False,
         },
         'django.request': {
