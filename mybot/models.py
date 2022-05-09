@@ -1,5 +1,4 @@
 import random
-
 import ujson
 from collections import namedtuple
 from typing import Callable, List, Iterable
@@ -10,7 +9,7 @@ from django.db.models import Q
 from django.contrib.auth.models import User
 
 from common.middlewares import LoggingContextAdapter
-from common.utils import chain
+from common import utils
 from . import settings as constants
 
 
@@ -52,7 +51,7 @@ class AsyncJob(models.Model):
             cls, name: str, params: dict,
             description='',
             max_retry=3, retry_interval=30, status=0, category=0):
-        now = datetime.now()
+        now = utils.get_datetime_now()
         obj = cls.objects.create(
             name=name, category=category, description=description, params=params,
             max_retry=max_retry, retries=0, retry_interval=retry_interval,
@@ -80,7 +79,7 @@ class AsyncJob(models.Model):
         if isinstance(result, dict):
             result = ujson.dumps(result)
 
-        return cls.objects.filter(id=id).update(result=result, status=status, mtime=datetime.now())
+        return cls.objects.filter(id=id).update(result=result, status=status, mtime=utils.get_datetime_now())
 
 
 class AsyncJobLock(models.Model):
@@ -106,11 +105,11 @@ class AsyncJobLock(models.Model):
         qs = cls.objects.filter(
             job_name=job_name,
             status=cls.STATUS_UNLOCK,
-            next_exec_time__lte=datetime.now(),
+            next_exec_time__lte=utils.get_datetime_now(),
         )
         count = qs.update(
             status=cls.STATUS_LOCKED,
-            mtime=datetime.now(),
+            mtime=utils.get_datetime_now(),
         )
         if count > 1:
             raise RuntimeError('AsyncJobLock.lock|job_name=%s|updated more than 1 row' % job_name)
@@ -124,7 +123,7 @@ class AsyncJobLock(models.Model):
         )
         count = qs.update(
             status=cls.STATUS_UNLOCK,
-            next_exec_time__lte=datetime.now() + timedelta(seconds=interval),
+            next_exec_time=utils.get_datetime_now() + timedelta(seconds=interval),
         )
         if count > 1:
             raise RuntimeError('AsyncJobLock.unlock|job_name=%s|updated more than 1 row' % job_name)
@@ -177,7 +176,7 @@ class AsyncJobConfig:
             cls.JOB_LIST[job_name] = cfg
 
             # get or create async_job_lock
-            now = datetime.now()
+            now = utils.get_datetime_now()
             job_config, created = AsyncJobLock.objects.get_or_create(
                 job_name=job_name,
                 defaults=dict(status=AsyncJobLock.STATUS_UNLOCK, handler_name='')
@@ -294,7 +293,7 @@ class AbstractOneBotEventHandler:
 
     async def dispatch(self, event: OneBotEvent, *args, **kwargs):
         event_name = get_event_name(event)
-        for handler_name in chain(event_name.split('.'), sep='_', prefix='event'):
+        for handler_name in utils.chain(event_name.split('.'), sep='_', prefix='event'):
             if h := getattr(self, handler_name, None):
                 return await h(event, *args, **kwargs)
 

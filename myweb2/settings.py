@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 from django.utils.translation import gettext_lazy as _
+import pytz
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -121,6 +122,7 @@ LOCALE_PATHS = (
 )
 
 TIME_ZONE = 'Asia/Shanghai'
+PY_TIME_ZONE = pytz.timezone(TIME_ZONE)
 
 USE_I18N = True
 
@@ -158,8 +160,8 @@ DATABASES = DATABASES[ENV]
 CACHES = {
     'test': {
         'default': {
-            'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
-            'LOCATION': '127.0.0.1:11211',
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
         },
     },
     'live': {

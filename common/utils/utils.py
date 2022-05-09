@@ -1,5 +1,7 @@
+import datetime
 from typing import Iterable
 from common.constants import ErrCode, ErrMsg
+from django.conf import settings
 
 
 def read_attr_from_dict(instance: object, data: dict):
@@ -28,3 +30,8 @@ def chain(ar: list, sep='', prefix=None):
     for x in ar:
         ret = ret + sep + x
         yield ret
+
+
+def get_datetime_now():
+    ret = datetime.datetime.now(tz=settings.PY_TIME_ZONE)
+    return ret

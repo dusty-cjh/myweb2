@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 
 from django.http.request import HttpRequest
-from django.core.cache import cache
+from common import utils
 from .models import OneBotEvent, AsyncJobLock, AsyncJobConfig, AsyncJob
 from . import settings as constants
 
@@ -19,7 +19,7 @@ async def process_async_job():
             continue
 
         # get async job list and process async job
-        for job in await s2a(AsyncJob.get_active_job_list_by_name)(cfg.job_name):
+        for job in await s2a(lambda x: list(AsyncJob.get_active_job_list_by_name(x)))(cfg.job_name):
             # execute job
             try:
                 err = cfg.handler(job)
@@ -39,7 +39,7 @@ async def process_async_job():
                 # store running statistic
                 job_statistic['success'] = job_statistic.setdefault('success', 0) + 1
                 success += 1
-            now = datetime.now()
+            now = utils.get_utils.get_datetime_now()
             job.mtime = now
 
             # check whether job is failed
@@ -53,14 +53,15 @@ async def process_async_job():
         await s2a(AsyncJobLock.unlock)(cfg.job_name)
 
     # print analysis
-    print('[async_job]total_success=%d, total_failed=%d' % (success, failed), file=sys.stderr)
-    for k, v in statistic.items():
-        print('[async_job][%s]success=%d, failed=%d' % (k, v['success'], v['failed']), file=sys.stderr)
+    if success + failed > 0:
+        print('[async_job]total_success=%d, total_failed=%d' % (success, failed), file=sys.stderr)
+        for k, v in statistic.items():
+            print('[async_job][%s]success=%d, failed=%d' % (k, v['success'], v['failed']), file=sys.stderr)
 
 
 async def run():
     while True:
-        end_time = datetime.now() + timedelta(seconds=5)
+        end_time = utils.get_datetime_now() + timedelta(seconds=5)
 
         # process async job
         await process_async_job()
@@ -78,7 +79,7 @@ async def run():
                 pass
 
         # have a rest
-        cur_time = datetime.now()
+        cur_time = utils.get_datetime_now()
         if cur_time < end_time:
             t = end_time.timestamp() - cur_time.timestamp()
             await aio.sleep(t)
@@ -108,12 +109,12 @@ class MessageExchanger:
 
     def __init__(self, session_key, timeout=300):
         self.msg_result = EVENT_LOOP.create_future()
-        self.timeout = datetime.now() + timedelta(seconds=timeout)
+        self.timeout = utils.get_datetime_now() + timedelta(seconds=timeout)
         self.session_key = session_key
-        self.start_time = datetime.now().timestamp()
+        self.start_time = utils.get_datetime_now().timestamp()
 
     def has_timeout(self) -> bool:
-        return datetime.now() > self.timeout
+        return utils.get_datetime_now() > self.timeout
 
     def process_message(self, request: HttpRequest, e):
         self.msg_result.set_result(e)
@@ -125,7 +126,7 @@ class MessageExchanger:
             self.msg_result.set_exception(aio.TimeoutError('MessageExchanger timeout'))
 
     def __repr__(self):
-        return f'{self.session_key}({self.timeout.timestamp() - datetime.now().timestamp()})'
+        return f'{self.session_key}({self.timeout.timestamp() - utils.get_datetime_now().timestamp()})'
 
 
 def get_msg_exchanger(session_key) -> MessageExchanger:
@@ -177,13 +178,12 @@ def process_message(request: HttpRequest, event: OneBotEvent):
         session_key = get_session_key(user_id=event.user_id, group_id=event.group_id)
 
     # process message if session key exists
-    propagate = True
     if msg_exchanger := get_msg_exchanger(session_key):
         if msg_exchanger.start_time <= event.time:
-            propagate = msg_exchanger.process_message(request, event)
+            ret = msg_exchanger.process_message(request, event)
             pop_msg_exchanger(session_key)
-
-    return {} if propagate else None
+            if ret:
+                return ret
 
 
 def call(coro):

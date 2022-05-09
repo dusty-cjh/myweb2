@@ -65,7 +65,6 @@ async def dispatch(request: HttpRequest):
 
     # handle by task
     if resp := process_message(request, event) is not None:
-        print('dispathc, resp:', resp)
         return resp
 
     # handle by event

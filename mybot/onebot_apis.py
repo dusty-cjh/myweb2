@@ -1,7 +1,7 @@
 import ujson
 import aiohttp
 from functools import wraps
-
+from django.core.cache import cache
 from .settings import ONE_BOT, get_errmsg_from_status
 
 
@@ -61,11 +61,42 @@ class OneBotApi(metaclass=OneBotApiMeta):
     set_group_ban: get_response
     set_group_anonymous_ban: get_response
     get_group_info: get_response
+    get_group_member_list: get_response
+    get_group_member_info: get_response
     session = None
 
     def __init__(self, session: aiohttp.ClientSession = None, **kwargs):
         self.session = session or get_session()
         self.kwargs = kwargs
 
-    # def __getattr__(self, url):
-    #     return get_response('/' + url, session=self.session, **self.kwargs)
+    @classmethod
+    async def get_group_member_list_with_cache(cls, group_id) -> list[dict]:
+        key = f'OneBotApi.get_group_member_list_with_cache.{group_id}'
+        data = cache.get(key)
+        if data:
+            return data
+
+        data = await cls.get_group_member_list(group_id=group_id)
+        cache.set(key, data, 60)
+        return data
+
+    @classmethod
+    async def get_group_admin_list_with_cache(cls, group_id) -> list[dict]:
+        key = f'OneBotApi.get_group_admin_list_with_cache.{group_id}'
+        data = cache.get(key)
+        if data:
+            return data
+
+        data = await cls.get_group_member_list_with_cache(group_id=group_id)
+        data = [x for x in data if x['role'] in ('admin', 'owner')]
+        return data
+
+    @classmethod
+    async def get_group_member_info_with_cache(cls, group_id, user_id) -> dict:
+        key = f'OneBotApi.get_group_member_info_with_cache.{group_id}.{user_id}'
+        data = cache.get(key)
+        if data:
+            return data
+
+        data = await cls.get_group_member_info(group_id=group_id, user_id=user_id)
+        return data
