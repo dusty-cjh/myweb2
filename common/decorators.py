@@ -1,5 +1,21 @@
 from functools import wraps
+from django.core.cache import cache
 from .middlewares import get_logger
+
+
+def cache_func_result(timeout=600):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = 'f.r.{}'.format(repr(args) + repr(kwargs))
+            if ret := cache.get(key, None):
+                return ret
+            else:
+                ret = func(*args, **kwargs)
+                cache.set(key, ret)
+                return ret
+        return wrapper
+    return decorator
 
 
 def async_csrf_exempt(func):

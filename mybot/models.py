@@ -1,6 +1,13 @@
+import random
+
+import ujson
 from collections import namedtuple
+from typing import Callable, List, Iterable
+from datetime import datetime, timedelta
 from django.db import models
 from django.http.request import HttpRequest
+from django.db.models import Q
+from django.contrib.auth.models import User
 
 from common.middlewares import LoggingContextAdapter
 from common.utils import chain
@@ -40,6 +47,41 @@ class AsyncJob(models.Model):
     def __str__(self):
         return 'AsyncJob(id=%d, name=%s, params=%s)'.format(self.id, self.name, self.params)
 
+    @classmethod
+    def insert(
+            cls, name: str, params: dict,
+            description='',
+            max_retry=3, retry_interval=30, status=0, category=0):
+        now = datetime.now()
+        obj = cls.objects.create(
+            name=name, category=category, description=description, params=params,
+            max_retry=max_retry, retries=0, retry_interval=retry_interval,
+            status=status, ctime=now, mtime=now,
+        )
+        return obj
+
+    @classmethod
+    def get_job_list_by_name(cls, name: str, status=-1):
+        qs = cls.objects.filter(name=name)
+        if status != -1:
+            qs = cls.objects.filter(status=status)
+        return qs
+
+    @classmethod
+    def get_active_job_list_by_name(cls, name: str):
+        qs = cls.objects.filter(name=name, status__lte=cls.STATUS_PAUSE)
+        return qs
+
+    def parse_params(self) -> dict:
+        return ujson.loads(self.params)
+
+    @classmethod
+    def set_result_by_id(cls, id: int, result, status: int):
+        if isinstance(result, dict):
+            result = ujson.dumps(result)
+
+        return cls.objects.filter(id=id).update(result=result, status=status, mtime=datetime.now())
+
 
 class AsyncJobLock(models.Model):
     STATUS_UNLOCK = 0
@@ -49,15 +91,121 @@ class AsyncJobLock(models.Model):
         (STATUS_LOCKED, 'locked'),
     )
 
-    job_name = models.CharField(max_length=30, verbose_name='async job name to lock')
+    job_name = models.CharField(max_length=30, primary_key=True, verbose_name='async job name to lock')
     status = models.SmallIntegerField(choices=STATUS, default=STATUS_UNLOCK)
     handler_name = models.CharField(max_length=64, verbose_name='handler name')
     ctime = models.DateTimeField(auto_now_add=True, verbose_name='created timestamp')
-    mtime = models.DateTimeField(verbose_name='modified timestamp')
-    exec_interval = models.PositiveSmallIntegerField(default=30, verbose_name='job queue execute interval in seconds')
+    mtime = models.DateTimeField(verbose_name='modified timestamp', null=True)
+    next_exec_time = models.DateTimeField(verbose_name='next timestamp to execute tasks', null=True)
 
     def __str__(self):
-        return 'AsyncJobLock(id=%d, job_name=%s, status=%d)'.format(self.id, self.job_name, self.status)
+        return 'AsyncJobLock(job_name=%s, status=%d)'.format(self.job_name, self.status)
+
+    @classmethod
+    def lock(cls, job_name: str) -> bool:
+        qs = cls.objects.filter(
+            job_name=job_name,
+            status=cls.STATUS_UNLOCK,
+            next_exec_time__lte=datetime.now(),
+        )
+        count = qs.update(
+            status=cls.STATUS_LOCKED,
+            mtime=datetime.now(),
+        )
+        if count > 1:
+            raise RuntimeError('AsyncJobLock.lock|job_name=%s|updated more than 1 row' % job_name)
+        return bool(count)
+
+    @classmethod
+    def unlock(cls, job_name: str, interval=30) -> bool:
+        qs = cls.objects.filter(
+            job_name=job_name,
+            status=cls.STATUS_LOCKED,
+        )
+        count = qs.update(
+            status=cls.STATUS_UNLOCK,
+            next_exec_time__lte=datetime.now() + timedelta(seconds=interval),
+        )
+        if count > 1:
+            raise RuntimeError('AsyncJobLock.unlock|job_name=%s|updated more than 1 row' % job_name)
+        return bool(count)
+
+    # ----------- config
+
+    JOB_LIST = []
+
+    @classmethod
+    def add_job_config(
+            cls,
+            job_name: str,
+            category: int,
+            handler: Callable,
+            description='',
+            retry_interval=30,
+            max_retry=3,
+            status=0,
+    ):
+        # global
+        params = {k: v for k, v in locals().items()}
+        params.pop('cls')
+
+        # save job config
+        cls.JOB_LIST.append(params)
+
+
+class AsyncJobConfig:
+    class objects:
+        JOB_LIST = {}
+
+        @classmethod
+        def get_or_create(
+                cls,
+                job_name: str,
+                handler: Callable,
+                description='',
+                retry_interval=30,
+                max_retry=3,
+                status=0,
+                category=0,
+        ):
+            # create async job config
+            params = {k: v for k, v in locals().items()}
+            params.pop('cls')
+            cfg = AsyncJobConfig()
+            for k, v in params.items():
+                setattr(cfg, k, v)
+            cls.JOB_LIST[job_name] = cfg
+
+            # get or create async_job_lock
+            now = datetime.now()
+            job_config, created = AsyncJobLock.objects.get_or_create(
+                job_name=job_name,
+                defaults=dict(status=AsyncJobLock.STATUS_UNLOCK, handler_name='')
+            )
+            print('get job_config', job_config)
+            if created:
+                job_config.ctime = now
+                job_config.mtime = now
+                job_config.next_exec_time = now + timedelta(seconds=retry_interval + random.random() * 10)
+                job_config.save()
+
+            return cfg
+
+        @classmethod
+        def get_job_config_by_name(cls, job_name: str):
+            return cls.JOB_LIST.get(job_name, None)
+
+        @classmethod
+        def all(cls) -> list:
+            return cls.JOB_LIST.values()
+
+    job_name: str
+    category: int
+    handler: Callable
+    description = ''
+    retry_interval = 30
+    max_retry = 3
+    status = 0
 
 
 class OneBotSender:
@@ -249,3 +397,43 @@ class AbstractOneBotEventHandler:
     async def event_request_group_invite(self, event: OneBotEvent, *args, **kwargs):
         pass
 
+
+class UserProfile(models.Model):
+    # user = models.OneToOneField('auth.User', on_delete=models.CASCADE, verbose_name='user')
+    name = models.CharField(max_length=20, verbose_name='name')
+    qq_number = models.PositiveIntegerField(verbose_name='qqq number')
+    college = models.CharField(max_length=20, verbose_name='college name', default='YSU')
+    college_student_number = models.CharField(max_length=20, verbose_name='college student number')
+    ctime = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = verbose_name_plural = 'UserProfile'
+        ordering = ['-ctime', ]
+
+    def __str__(self):
+        return f'{self.name}({self.college_student_number})'
+
+    @classmethod
+    def get_by_student_number(cls, college_student_number: str, college='YSU'):
+        try:
+            ret = cls.objects.filter(
+                Q(college_student_number=college_student_number) &
+                Q(college=college)
+            ).first()
+        except cls.DoesNotExist:
+            return None
+        else:
+            return ret
+
+    @property
+    def enrollment_year(self):
+        if self.college_student_number.startswith('20'):
+            return int(self.college_student_number[:4])
+        else:
+            return int(f'20{self.college_student_number[:2]}')
+
+
+# @receiver(post_save, sender=User)
+# def profile_create(sender, instance, created, **kwargs):
+#     if created:
+#         Profile.objects.create(user=instance)

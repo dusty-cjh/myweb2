@@ -13,6 +13,10 @@ async def index(request: HttpRequest, *args, **kwargs):
     # plugin handle
     resp = await plugin_loader.dispatch(request)
     if resp:
-        return JsonResponse(resp)
+        try:
+            return JsonResponse(resp)
+        except Exception as e:
+            request.log.error('mybot.apis.index|exception=%s' % repr(e))
+            return HttpResponse(b'', status=200)
     else:
         return HttpResponse(b'', status=200)

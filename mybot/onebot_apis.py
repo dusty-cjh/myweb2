@@ -1,5 +1,6 @@
 import ujson
 import aiohttp
+from functools import wraps
 
 from .settings import ONE_BOT, get_errmsg_from_status
 
@@ -39,12 +40,15 @@ class OneBotApiMeta(type):
     def __init__(cls, name, bases, attr_dict):
         super().__init__(name, bases, attr_dict)
 
+        def create_api(url):
+            @wraps(get_response)
+            async def wrapper(session: aiohttp.ClientSession = None, **kwargs):
+                return await get_response('/' + url, session=session, **kwargs)
+            return wrapper
+
         api_name_list = [k for k, v in attr_dict['__annotations__'].items() if v is get_response]
         for api_name in api_name_list:
-            setattr(
-                cls, api_name,
-                lambda session=None, **kwargs: get_response('/' + api_name, session=session, **kwargs),
-            )
+            setattr(cls, api_name, create_api(api_name))
 
 
 class OneBotApi(metaclass=OneBotApiMeta):
@@ -56,4 +60,12 @@ class OneBotApi(metaclass=OneBotApiMeta):
     set_group_kick: get_response
     set_group_ban: get_response
     set_group_anonymous_ban: get_response
+    get_group_info: get_response
+    session = None
 
+    def __init__(self, session: aiohttp.ClientSession = None, **kwargs):
+        self.session = session or get_session()
+        self.kwargs = kwargs
+
+    # def __getattr__(self, url):
+    #     return get_response('/' + url, session=self.session, **self.kwargs)

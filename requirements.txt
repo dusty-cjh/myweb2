@@ -1,5 +1,3 @@
-
-
 django-pandas
 django-ckeditor
 django-ckeditor-5
@@ -9,3 +7,5 @@ simpleui
 cryptography
 pyyaml
 markdown
+ujson
+aiohttp

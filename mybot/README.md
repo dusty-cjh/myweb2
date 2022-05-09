@@ -38,8 +38,12 @@ hello,
 验证失败！
 您还有一次重试机会
 ```
-4. 验证超过 10min 没有成功，则踢出群聊
 
+4. 验证超过 2min 没有成功，则踢出群聊
+
+5. 群管理可通过命令 `auto_approve ysu_check [target_qq_number]` 来主动对成员进行身份验证
+
+6. 自动检索 pending 状态的加群请求，并依次处理
 
 Tech Design:
 

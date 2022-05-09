@@ -2,15 +2,86 @@ import asyncio as aio
 import sys
 from threading import Thread
 from datetime import datetime, timedelta
+from asgiref.sync import sync_to_async as s2a
 
 from django.http.request import HttpRequest
-from .models import OneBotEvent
+from django.core.cache import cache
+from .models import OneBotEvent, AsyncJobLock, AsyncJobConfig, AsyncJob
 from . import settings as constants
+
+
+async def process_async_job():
+    statistic = {}
+    success, failed = 0, 0
+    for cfg in AsyncJobConfig.objects.all():
+        # get async job lock
+        if not await s2a(AsyncJobLock.lock)(cfg.job_name):
+            continue
+
+        # get async job list and process async job
+        for job in await s2a(AsyncJob.get_active_job_list_by_name)(cfg.job_name):
+            # execute job
+            try:
+                err = cfg.handler(job)
+            except Exception as err:
+                pass
+
+            # update job params
+            job_statistic = statistic.setdefault(job.name, {})
+            if err:
+                job.retries += 1
+                job.result = repr(err)
+                # store running statistic
+                job_statistic['failed'] = job_statistic.setdefault('failed', 0) + 1
+                failed += 1
+            else:
+                job.result = 'success'
+                # store running statistic
+                job_statistic['success'] = job_statistic.setdefault('success', 0) + 1
+                success += 1
+            now = datetime.now()
+            job.mtime = now
+
+            # check whether job is failed
+            if job.retries == job.max_retry:
+                job.status = AsyncJob.STATUS_FAIL
+
+            # save updates
+            job.save()
+
+        # release async job lock
+        await s2a(AsyncJobLock.unlock)(cfg.job_name)
+
+    # print analysis
+    print('[async_job]total_success=%d, total_failed=%d' % (success, failed), file=sys.stderr)
+    for k, v in statistic.items():
+        print('[async_job][%s]success=%d, failed=%d' % (k, v['success'], v['failed']), file=sys.stderr)
 
 
 async def run():
     while True:
-        await aio.sleep(5)
+        end_time = datetime.now() + timedelta(seconds=5)
+
+        # process async job
+        await process_async_job()
+
+        # process timeout event
+        timeout_keys = []
+        for key, msg_exchanger in MESSAGE_POOL.items():
+            if msg_exchanger.has_timeout():
+                msg_exchanger.process_timeout()
+                timeout_keys.append(key)
+        for key in timeout_keys:
+            try:
+                MESSAGE_POOL.pop(key)
+            except KeyError:
+                pass
+
+        # have a rest
+        cur_time = datetime.now()
+        if cur_time < end_time:
+            t = end_time.timestamp() - cur_time.timestamp()
+            await aio.sleep(t)
 
 
 def main(l: aio.AbstractEventLoop):
@@ -32,13 +103,14 @@ MESSAGE_POOL = {}
 class MessageExchanger:
     msg_result: aio.Future
     timeout: datetime
-    on_timeout: None
     session_key: str
+    on_timeout = None
 
     def __init__(self, session_key, timeout=300):
         self.msg_result = EVENT_LOOP.create_future()
-        self.timeout = datetime.now() + timedelta(timeout)
+        self.timeout = datetime.now() + timedelta(seconds=timeout)
         self.session_key = session_key
+        self.start_time = datetime.now().timestamp()
 
     def has_timeout(self) -> bool:
         return datetime.now() > self.timeout
@@ -46,11 +118,14 @@ class MessageExchanger:
     def process_message(self, request: HttpRequest, e):
         self.msg_result.set_result(e)
 
-    def process_timeout(self, request: HttpRequest, e):
+    def process_timeout(self):
         if self.on_timeout:
-            return self.on_timeout(request, e)
+            return self.on_timeout()
         else:
             self.msg_result.set_exception(aio.TimeoutError('MessageExchanger timeout'))
+
+    def __repr__(self):
+        return f'{self.session_key}({self.timeout.timestamp() - datetime.now().timestamp()})'
 
 
 def get_msg_exchanger(session_key) -> MessageExchanger:
@@ -76,11 +151,17 @@ def get_session_key(user_id: int = None, group_id: int = None):
     return session_key
 
 
-def get_message(user_id: int = None, group_id: int = None, timeout: int = 300):
+# get_message - get message by user_id or group_id or both of them
+async def get_message(user_id: int = None, group_id: int = None, timeout: int = 300) -> (OneBotEvent, str):
     session_key = get_session_key(user_id, group_id)
     exchanger = MessageExchanger(session_key, timeout)
     MESSAGE_POOL[session_key] = exchanger
-    return exchanger.msg_result
+    try:
+        msg = await exchanger.msg_result
+    except aio.TimeoutError as err:
+        return None, err
+    else:
+        return msg, None
 
 
 def process_message(request: HttpRequest, event: OneBotEvent):
@@ -98,11 +179,9 @@ def process_message(request: HttpRequest, event: OneBotEvent):
     # process message if session key exists
     propagate = True
     if msg_exchanger := get_msg_exchanger(session_key):
-        if msg_exchanger.has_timeout():
-            propagate = msg_exchanger.process_timeout(request, event)
-        else:
+        if msg_exchanger.start_time <= event.time:
             propagate = msg_exchanger.process_message(request, event)
-        pop_msg_exchanger(session_key)
+            pop_msg_exchanger(session_key)
 
     return {} if propagate else None
 
@@ -110,5 +189,3 @@ def process_message(request: HttpRequest, event: OneBotEvent):
 def call(coro):
     task = EVENT_LOOP.create_task(coro)
     return task
-
-

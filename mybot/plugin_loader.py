@@ -64,7 +64,8 @@ async def dispatch(request: HttpRequest):
     event = create_event(ujson.loads(request.body))
 
     # handle by task
-    if resp := process_message(request, event):
+    if resp := process_message(request, event) is not None:
+        print('dispathc, resp:', resp)
         return resp
 
     # handle by event
