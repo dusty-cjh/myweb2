@@ -1,16 +1,21 @@
 import re
 import sys
+import logging
 import asyncio as aio
 import xmltodict as xml
 from datetime import datetime
 from django.http.request import HttpRequest
 from asgiref.sync import async_to_sync as a2s, sync_to_async as s2a
-from mybot.models import AbstractOneBotEventHandler, UserProfile as Profile, AsyncJobConfig, AsyncJob
+
+from common.logger import Logger
+from mybot.models import AbstractOneBotEventHandler, UserProfile as Profile
 from mybot.onebot.serializers import RequestGroupResponse, RequestGroupRequest, RequestFriendResponse
 from mybot.onebot.apis import get_session
 from mybot.event_loop import get_message, call
 from mybot.onebot_apis import OneBotApi
 from mybot import event_loop
+
+logger = Logger('mybot')
 
 PLUGIN_NAME = '自动通过'
 YSU_GROUP = [1143835437, 645125440, 1127243020]
@@ -32,6 +37,7 @@ MSG_REQUIRE_USER_INFO = """hello,
 MSG_ERR_NO_SCHOOL_ID = '您所发的消息不含学号！请重新发送\n例：202011010704，赵险峰'
 MSG_ERR_RETRY = '验证失败！\n你还有一次重试机会'
 MSG_ERR_VERIFY_FAILED = '验证失败！'
+MSG_ERR_VERIFY_HINT = lambda id, name: '验证失败！请重输：\n{}-{}'.format(id, name)
 MSG_SUCCESS = '验证成功！\n祝您冲浪愉快~\n\n❤️觉得我做的还不错的话，可以加个好友呦～'
 MSG_FAILED = 'Validation failed\nwatch out your ass'
 MSG_VERIFICATION_MESSAGE_INVALID = '姓名或学号不正确，请重新输入\n（机器人自动验证）'
@@ -46,7 +52,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
     reg_school_id = re.compile(r'\d{12}')
 
     async def event_request_friend(self, event, *args, **kwargs):
-        self.log.data('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
+        logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
         event_loop.call(OneBotApi.send_private_msg(user_id=event.user_id, message=MSG_NOTI))
         resp = {
             'approve': True,
@@ -65,10 +71,15 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
                         'approve': False,
                         'reason': MSG_VERIFICATION_MESSAGE_INVALID,
                     })
+                elif err == MSG_ERR_VERIFY_HINT:
+                    return RequestGroupResponse({
+                        'approve': False,
+                        'reason': MSG_ERR_VERIFY_HINT,
+                    })
             else:
-                await s2a(insert_ysu_check_task)(event.user_id, event.group_id)
+                call(ysu_check(event.user_id, event.group_id))
 
-        self.log.data('{} approve {} to join group {}: {}', event.self_id, event.user_id, event.group_id, event.comment)
+        logger.info('{} approve {} to join group {}: {}', event.self_id, event.user_id, event.group_id, event.comment)
         resp = RequestGroupResponse({
             'approve': True,
             'reason': '',
@@ -77,11 +88,30 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
 
     async def event_request_group_invite(self, event, *args, **kwargs):
         self.log.data('{} agree {}\'s invitation of join group {}', event.self_id, event.user_id, event.group_id)
+        logger.info('{} agree {}\'s invitation of join group {}', event.self_id, event.user_id, event.group_id)
         resp = RequestGroupResponse({
             'approve': True,
             'reason': '',
         })
         return resp
+
+    async def event_notice_group_increase_approve(self, event, *args, **kwargs):
+        print('group increase event: ', event)
+        if event.group_id not in YSU_GROUP:
+            return
+
+        if event.self_id == event.operator_id:
+            return
+
+        exists = s2a(Profile.get_by_qq_number(event.user_id).exists)()
+        if exists:
+            return
+
+        call(ysu_check(event.user_id, event.group_id))
+
+
+def mask_username(name):
+    return '*' * (len(name) - 1) + name[-1]
 
 
 async def get_username_by_school_id(school_id: str):
@@ -147,8 +177,10 @@ async def get_or_create_user_info(message: str, qq_number: int, college_student_
 
     # get user name
     username = await get_username_by_school_id(college_student_number)
-    if not username or username not in message:
+    if not username:
         return None, MSG_ERR_VERIFY_FAILED
+    if username not in message:
+        return None, MSG_ERR_VERIFY_HINT(college_student_number, mask_username(username))
 
     # create user info
     ret = await s2a(Profile.objects.create, thread_sensitive=True)(
@@ -160,35 +192,49 @@ async def get_or_create_user_info(message: str, qq_number: int, college_student_
     return ret, None
 
 
-async def ysu_check(user_id: int, group_id=None, job_id=None):
-    print('[ysu_check] start', file=sys.stderr)
-    # send noti
-    await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_NOTI)
-    await aio.sleep(3)
-    ret = await OneBotApi.send_private_msg(
-        user_id=user_id,
-        group_id=group_id,
-        message=MSG_REQUIRE_USER_INFO.format(group_name=OneBotApi.get_group_info(group_id)['group_name']),
-    )
-    print('[ysu_check] request user info', ret, file=sys.stderr)
-
-    # get user info
+async def ysu_check(user_id: int, group_id=None):
     success = False
-    for i in range(2):
-        school_id, message, err = await get_school_id(user_id, group_id)
-        if err:
-            break
-        profile, err = await get_or_create_user_info(message, user_id, school_id)
-        if err:
-            # whether could retry
-            if err == MSG_ERR_VERIFY_FAILED:
-                if i <= 1:
-                    await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_ERR_RETRY)
-                else:
-                    await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_ERR_SYSTEM(err))
-        else:
-            success = True
-            break
+    print('[ysu_check] start', file=sys.stderr)
+    try:
+        # send noti
+        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_NOTI)
+        await aio.sleep(3)
+        resp = await OneBotApi.get_group_info(group_id=group_id)
+        if resp['retcode'] != 0:
+            print('[ysu_check] get_group_info of %d failed' % group_id, file=sys.stderr)
+            return
+
+        group_info = resp['data']
+        await OneBotApi.send_private_msg(
+            user_id=user_id,
+            group_id=group_id,
+            message=MSG_REQUIRE_USER_INFO.format(group_name=group_info['group_name']),
+        )
+
+        # get user info
+        for i in range(2):
+            school_id, message, err = await get_school_id(user_id, group_id)
+            if err:
+                break
+            profile, err = await get_or_create_user_info(message, user_id, school_id)
+            if err:
+                # whether could retry
+                if err == MSG_ERR_VERIFY_FAILED:
+                    if i <= 1:
+                        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_ERR_RETRY)
+                    else:
+                        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_ERR_SYSTEM(err))
+                elif err == MSG_ERR_VERIFY_HINT:
+                    if i <= 1:
+                        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_ERR_VERIFY_HINT)
+                    else:
+                        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id,
+                                                         message=MSG_ERR_SYSTEM(err))
+            else:
+                success = True
+                break
+    except Exception as e:
+        print('[ysu_check] failed because excepion: {}'.format(e))
 
     # kick out if validate fail
     if not success:
@@ -201,28 +247,6 @@ async def ysu_check(user_id: int, group_id=None, job_id=None):
             await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=msg)
 
     print('[ysu_check] end', file=sys.stderr)
-    if job_id:
-        await s2a(AsyncJob.set_result_by_id)(job_id, {
-            'user_id': user_id,
-            'group_id': group_id,
-            'result': success,
-        }, AsyncJob.STATUS_SUCCESS)
 
 
-def ysu_check_job_handler(job: AsyncJob):
-    params = job.parse_params()
-    user_id = params['user_id']
-    group_id = params['group_id']
-    event_loop.call(ysu_check(user_id, group_id))
-    return NORMAL_ERROR
-
-
-def insert_ysu_check_task(user_id: int, group_id: int) -> AsyncJob:
-    job = AsyncJob.insert(ASYNC_JOB_NAME, dict(locals()))
-    return job
-
-
-AsyncJobConfig.objects.get_or_create(
-    job_name=ASYNC_JOB_NAME,
-    handler=ysu_check_job_handler,
-)
+call(ysu_check(1085680873, 645125440))

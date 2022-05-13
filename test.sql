@@ -40,3 +40,5 @@ WHERE ba.status<>6 AND ba.type<>-1 AND bn.bank_name=ba.bank_name;
 -- others bank_name_id & bank_name which is either not in bank_name_tab need to be fixed one by one
 
 --  fixing
+
+insert into spp_bank_account_tab values(1046899, '', 'Test 05', 0, 'DUIT NOW IB PHONE NUMBER', 'id', '', 'YWVzQ2JjRW5jcnlwdDEyM8Zy3PqSAcQdIpdv+FaUCl4=', '', 111, '', '', 'ID', 2, 9368848, 1652091270, '{"save_flag":2,"proxy_type":5}', 0, 1650971506, '', 1, 5)

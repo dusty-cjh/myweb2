@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 
 from django.http.request import HttpRequest
-from common import utils
+from common import utils, constants as common_constants
 from .models import OneBotEvent, AsyncJobLock, AsyncJobConfig, AsyncJob
 from . import settings as constants
 
@@ -21,6 +21,7 @@ async def process_async_job():
         # get async job list and process async job
         for job in await s2a(lambda x: list(AsyncJob.get_active_job_list_by_name(x)))(cfg.job_name):
             # execute job
+            err = None
             try:
                 err = cfg.handler(job)
             except Exception as err:
@@ -63,8 +64,8 @@ async def run():
     while True:
         end_time = utils.get_datetime_now() + timedelta(seconds=5)
 
-        # process async job
-        await process_async_job()
+        # # process async job
+        # await process_async_job()
 
         # process timeout event
         timeout_keys = []
@@ -89,9 +90,15 @@ def main(l: aio.AbstractEventLoop):
     print('[mybot.event_loop] start', file=sys.stderr)
     try:
         l.run_until_complete(run())
+    except KeyboardInterrupt:
+        print('[mybot.event_loop] event loop quit: KeyboardInterrupt')
+    except RuntimeError as e:
+        if repr(e) not in common_constants.PYTHON_INTERPRETER_SHUTDOWN:
+            print('[mybot.event_loop] event loop have to restart, because runtime error: %s' % repr(e), file=sys.stderr)
+            main(l)
     except Exception as e:
-        print('[mybot.event_loop] event loop error: %s', repr(e), file=sys.stderr)
-        raise e
+        print('[mybot.event_loop] event loop have to restart, because exception: %s' % repr(e), file=sys.stderr)
+        main(l)
     print('[mybot.event_loop] done', file=sys.stderr)
 
 

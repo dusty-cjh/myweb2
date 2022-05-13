@@ -45,7 +45,61 @@ hello,
 
 6. 自动检索 pending 状态的加群请求，并依次处理
 
-Tech Design:
+
+<details><summary>BE Flow</summary>
+
+[syntax refer](https://mermaid-js.github.io/mermaid/#/./sequenceDiagram)
+
+1. 用户输入了正确的姓名和学号
+```mermaid
+sequenceDiagram
+participant Q as QQ client
+participant M as Mybot
+
+Q ->> M: request join group with right message 
+M ->> M: check DB
+alt group no existing QQ bound with this ysu id 
+M ->> M: save profile to DB
+M ->> Q: approve
+else has bound
+M ->> Q: reject: MSG_ERR_HAS_BOUND
+end
+```
+
+2. 用户输入了错误的姓名和学号
+
+```mermaid
+sequenceDiagram
+participant Q as QQ client
+participant M as Mybot
+
+Q -->> M: request join group with wrong message 
+
+M -->> Q: approve
+M ->> Q: MSG_NOTI
+
+loop get user info
+M -->> Q: MSG_REQUIRE_USER_INFO
+Q -->> M: input user info with bad format 
+end
+Q ->> M: input user info 
+
+alt user reply correnct info
+alt no bound with another QQ in the group
+M ->> M: save user profile to DB
+M ->> Q: MSG_SUCCESS
+else bound with another QQ in the group
+M ->> Q: MSG_ERR_HAS_BOUND
+M -->> Q: kick out of the group
+end
+else user reply not matched info
+M -->> Q: kick out of the group
+end
+```
+
+</details>
+
+<details><summary>Tech Design</summary>
 
 curl 请求：
 ```shell
@@ -117,4 +171,15 @@ delete [groupid] from monitor list if provided, else means stop global monitor
 show current monitoring group list
 
 > (自动通过|auto_approve)(ls|列表)
+
+</details>
+
+
+
+
+
+
+
+
+
 

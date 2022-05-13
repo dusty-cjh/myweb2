@@ -5,7 +5,7 @@ from typing import Callable, List, Iterable
 from datetime import datetime, timedelta
 from django.db import models
 from django.http.request import HttpRequest
-from django.db.models import Q
+from django.db.models import Q, F, Func, Value
 from django.contrib.auth.models import User
 
 from common.middlewares import LoggingContextAdapter
@@ -14,14 +14,12 @@ from . import settings as constants
 
 
 class AsyncJob(models.Model):
-    STATUS_INIT = 0
     STATUS_PENDING = 1
     STATUS_RUNNING = 2
     STATUS_PAUSE = 3
     STATUS_FAIL = 4
     STATUS_SUCCESS = 5
     STATUS = (
-        (STATUS_INIT, 'initialized'),
         (STATUS_PENDING, 'pending'),
         (STATUS_RUNNING, 'running'),
         (STATUS_PAUSE, 'pause'),
@@ -29,16 +27,20 @@ class AsyncJob(models.Model):
         (STATUS_SUCCESS, 'success'),
     )
 
-    name = models.CharField(max_length=30)
-    category = models.SmallIntegerField(default=-1)
-    description = models.CharField(max_length=128, default='')
+    # use db_index for wildcard matching to get sub async job
+    # exp:
+    #   1. you may want to handle all sub job of the plugin, mybot.ysu_check
+    #   2. you may want to delete all sub job of a failed task.
+    #
+    # just use: update async_job set xxx where name like 'mybot.ysu_check.%'
+    name = models.CharField(max_length=30, db_index=True)
     params = models.TextField()
+    status = models.SmallIntegerField(choices=STATUS, default=STATUS_PENDING)
 
     max_retry = models.SmallIntegerField(default=1, verbose_name='max retry times')
     retries = models.SmallIntegerField(default=0, verbose_name='retry times count')
-    retry_interval = models.PositiveSmallIntegerField(default=30, verbose_name='retry interval in seconds')
+    lifetime = models.PositiveIntegerField(default=300, verbose_name='lifetime in seconds', help_text='default 5 min')
 
-    status = models.SmallIntegerField(choices=STATUS, default=STATUS_INIT)
     result = models.TextField()
     ctime = models.DateTimeField(auto_now_add=True, verbose_name='created timestamp')
     mtime = models.DateTimeField(verbose_name='modified timestamp')
@@ -47,15 +49,12 @@ class AsyncJob(models.Model):
         return 'AsyncJob(id=%d, name=%s, params=%s)'.format(self.id, self.name, self.params)
 
     @classmethod
-    def insert(
-            cls, name: str, params: dict,
-            description='',
-            max_retry=3, retry_interval=30, status=0, category=0):
+    def insert(cls, name: str, params: dict, max_retry=3, lifetime=300):
         now = utils.get_datetime_now()
         obj = cls.objects.create(
-            name=name, category=category, description=description, params=params,
-            max_retry=max_retry, retries=0, retry_interval=retry_interval,
-            status=status, ctime=now, mtime=now,
+            name=name, params=params, result='',
+            max_retry=max_retry, retries=0, lifetime=lifetime,
+            status=cls.STATUS_PENDING, ctime=now, mtime=now,
         )
         return obj
 
@@ -67,8 +66,15 @@ class AsyncJob(models.Model):
         return qs
 
     @classmethod
-    def get_active_job_list_by_name(cls, name: str):
-        qs = cls.objects.filter(name=name, status__lte=cls.STATUS_PAUSE)
+    def get_active_job_list_by_name(cls, name: str, limit=3):
+        qs = cls.objects.filter(
+            Q(name=name) &
+            (
+                Q(status=cls.STATUS_PENDING) |    # get pending jobs
+                (Q(status=cls.STATUS_FAIL) & Q(max_retry__gt=F('retries')))  # get retry able jobs
+                # (Q(status=cls.STATUS_RUNNING) & Q(mtime__lte=Func('now') + F('lifetime')))  # get expired jobs
+            )
+        )[:limit]
         return qs
 
     def parse_params(self) -> dict:
@@ -423,6 +429,10 @@ class UserProfile(models.Model):
             return None
         else:
             return ret
+
+    @classmethod
+    def get_by_qq_number(cls, qq: int):
+        return cls.objects.filter(qq_number=qq)
 
     @property
     def enrollment_year(self):

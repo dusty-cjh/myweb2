@@ -310,7 +310,14 @@ LOGGING = {
             'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
             'formatter': 'data',
             'encoding': 'utf8'
-        }
+        },
+        'mybot': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
+            'formatter': 'data',
+            'encoding': 'utf8'
+        },
     },
     'root': {
         'handlers': ['console', 'daemon', ],
@@ -342,6 +349,10 @@ LOGGING = {
         'data': {
             'handlers': ['data', ],
             'propagate': False,
+        },
+        'mybot': {
+            'handlers': ['mybot', ],
+            'propagate': True,
         },
     },
 }

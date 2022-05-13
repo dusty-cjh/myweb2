@@ -1,4 +1,3 @@
-
 class ErrCode:
     UNKNOWN = -1
     SUCCESS = 0
@@ -20,3 +19,10 @@ ErrMsg = {
     ErrCode.TIMEOUT: 'timeout',
     ErrCode.KRPC_SERVER_NOT_START: 'krpc server not start',
 }
+
+PYTHON_INTERPRETER_SHUTDOWN = (
+    RuntimeError('cannot schedule new futures after shutdown'),
+    RuntimeError('cannot schedule new futures after interpreter shutdown'),
+)
+PYTHON_INTERPRETER_SHUTDOWN = [repr(x) for x in PYTHON_INTERPRETER_SHUTDOWN]
+
