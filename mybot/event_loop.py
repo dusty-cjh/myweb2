@@ -5,85 +5,52 @@ from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 
 from django.http.request import HttpRequest
+from django.conf import settings
 from common import utils, constants as common_constants
-from .models import OneBotEvent, AsyncJobLock, AsyncJobConfig, AsyncJob
+from post.models import AsyncFuncJob, MAX_RETRY, MAX_LIFETIME
+from .models import OneBotEvent, AsyncJobLock, AsyncJob
 from . import settings as constants
 
 
-async def process_async_job():
-    statistic = {}
-    success, failed = 0, 0
-    for cfg in AsyncJobConfig.objects.all():
-        # get async job lock
-        if not await s2a(AsyncJobLock.lock)(cfg.job_name):
-            continue
-
-        # get async job list and process async job
-        for job in await s2a(lambda x: list(AsyncJob.get_active_job_list_by_name(x)))(cfg.job_name):
-            # execute job
-            err = None
-            try:
-                err = cfg.handler(job)
-            except Exception as err:
-                pass
-
-            # update job params
-            job_statistic = statistic.setdefault(job.name, {})
-            if err:
-                job.retries += 1
-                job.result = repr(err)
-                # store running statistic
-                job_statistic['failed'] = job_statistic.setdefault('failed', 0) + 1
-                failed += 1
-            else:
-                job.result = 'success'
-                # store running statistic
-                job_statistic['success'] = job_statistic.setdefault('success', 0) + 1
-                success += 1
-            now = utils.get_utils.get_datetime_now()
-            job.mtime = now
-
-            # check whether job is failed
-            if job.retries == job.max_retry:
-                job.status = AsyncJob.STATUS_FAIL
-
-            # save updates
-            job.save()
-
-        # release async job lock
-        await s2a(AsyncJobLock.unlock)(cfg.job_name)
-
-    # print analysis
-    if success + failed > 0:
-        print('[async_job]total_success=%d, total_failed=%d' % (success, failed), file=sys.stderr)
-        for k, v in statistic.items():
-            print('[async_job][%s]success=%d, failed=%d' % (k, v['success'], v['failed']), file=sys.stderr)
-
-
 async def run():
-    while True:
-        end_time = utils.get_datetime_now() + timedelta(seconds=5)
+    def delete_done_event(pool: dict):
+        done_keys = []
+        for key, val in pool.items():
+            if isinstance(val, aio.Future):
+                if val.done() or val.cancelled():
+                    done_keys.append(key)
+            elif isinstance(val, dict):
+                delete_done_event(val)
+            else:
+                raise ValueError('event_loop.delete_done_event: unexpected value type: %s' % type(val))
 
-        # # process async job
-        # await process_async_job()
+        for key in done_keys:
+            pool.pop(key)
+
+    while True:
+        end_time = utils.get_datetime_now() + timedelta(seconds=20)
+        loop = get_event_loop()
+
+        # process async job
+        job_list = await s2a(lambda: list(AsyncFuncJob.get_callable_list()))()
+        for job in job_list:
+            if job.is_coroutine:
+                loop.create_task(job.get_coroutine()(job))
+            else:
+                loop.run_in_executor(None, job.get_function()(job))
 
         # process timeout event
-        timeout_keys = []
-        for key, msg_exchanger in MESSAGE_POOL.items():
-            if msg_exchanger.has_timeout():
-                msg_exchanger.process_timeout()
-                timeout_keys.append(key)
-        for key in timeout_keys:
-            try:
-                MESSAGE_POOL.pop(key)
-            except KeyError:
-                pass
+        delete_done_event(MESSAGE_POOL)
 
         # have a rest
         cur_time = utils.get_datetime_now()
         if cur_time < end_time:
             t = end_time.timestamp() - cur_time.timestamp()
             await aio.sleep(t)
+
+        if settings.DEBUG:
+            print('[event_loop running] asyncio.loop.event_count=%d, handled async func job %d, message pool size: %d' %
+                  (len(aio.all_tasks(loop)), len(job_list), len(MESSAGE_POOL)))
 
 
 def main(l: aio.AbstractEventLoop):
@@ -93,56 +60,38 @@ def main(l: aio.AbstractEventLoop):
     except KeyboardInterrupt:
         print('[mybot.event_loop] event loop quit: KeyboardInterrupt')
     except RuntimeError as e:
+        if settings.DEBUG:
+            raise e
         if repr(e) not in common_constants.PYTHON_INTERPRETER_SHUTDOWN:
             print('[mybot.event_loop] event loop have to restart, because runtime error: %s' % repr(e), file=sys.stderr)
             main(l)
     except Exception as e:
+        if settings.DEBUG:
+            raise e
         print('[mybot.event_loop] event loop have to restart, because exception: %s' % repr(e), file=sys.stderr)
         main(l)
     print('[mybot.event_loop] done', file=sys.stderr)
 
 
-EVENT_LOOP = aio.new_event_loop()
-EVENT_LOOP_THREAD = Thread(target=main, args=(EVENT_LOOP,), name='mybot.event_loop')
-EVENT_LOOP_THREAD.start()
-MESSAGE_POOL = {}
+_EVENT_LOOP = None
+_EVENT_LOOP_THREAD = None
+MESSAGE_POOL = {
+    'message': {
+        'private': {},
+        'group': {},
+    },
+}
 
 
-class MessageExchanger:
-    msg_result: aio.Future
-    timeout: datetime
-    session_key: str
-    on_timeout = None
+def get_event_loop() -> aio.AbstractEventLoop:
+    global _EVENT_LOOP, _EVENT_LOOP_THREAD
 
-    def __init__(self, session_key, timeout=300):
-        self.msg_result = EVENT_LOOP.create_future()
-        self.timeout = utils.get_datetime_now() + timedelta(seconds=timeout)
-        self.session_key = session_key
-        self.start_time = utils.get_datetime_now().timestamp()
+    if not _EVENT_LOOP or _EVENT_LOOP.is_closed():
+        _EVENT_LOOP = aio.new_event_loop()
+        _EVENT_LOOP_THREAD = Thread(target=main, args=(_EVENT_LOOP,), name='mybot.event_loop')
+        _EVENT_LOOP_THREAD.start()
 
-    def has_timeout(self) -> bool:
-        return utils.get_datetime_now() > self.timeout
-
-    def process_message(self, request: HttpRequest, e):
-        self.msg_result.set_result(e)
-
-    def process_timeout(self):
-        if self.on_timeout:
-            return self.on_timeout()
-        else:
-            self.msg_result.set_exception(aio.TimeoutError('MessageExchanger timeout'))
-
-    def __repr__(self):
-        return f'{self.session_key}({self.timeout.timestamp() - utils.get_datetime_now().timestamp()})'
-
-
-def get_msg_exchanger(session_key) -> MessageExchanger:
-    return MESSAGE_POOL.get(session_key)
-
-
-def pop_msg_exchanger(session_key) -> MessageExchanger:
-    if session_key in MESSAGE_POOL:
-        MESSAGE_POOL.pop(session_key)
+    return _EVENT_LOOP
 
 
 def get_session_key(user_id: int = None, group_id: int = None):
@@ -159,13 +108,16 @@ def get_session_key(user_id: int = None, group_id: int = None):
     return session_key
 
 
-# get_message - get message by user_id or group_id or both of them
-async def get_message(user_id: int = None, group_id: int = None, timeout: int = 300) -> (OneBotEvent, str):
-    session_key = get_session_key(user_id, group_id)
-    exchanger = MessageExchanger(session_key, timeout)
-    MESSAGE_POOL[session_key] = exchanger
+def _get_session_key_of_private_message(user_id: int):
+    return 'message.private.{}'.format(user_id)
+
+
+async def get_private_message(user_id: int, timeout=300) -> (OneBotEvent, Exception):
+    loop = get_event_loop()
+    fut = loop.create_future()
+    MESSAGE_POOL['message']['private'][user_id] = fut
     try:
-        msg = await exchanger.msg_result
+        msg = await aio.wait_for(fut, timeout, loop=loop)
     except aio.TimeoutError as err:
         return None, err
     else:
@@ -177,22 +129,30 @@ def process_message(request: HttpRequest, event: OneBotEvent):
     if event.post_type != constants.EVENT_POST_TYPE_MESSAGE:
         return
 
-    # get session key
-    session_key = ''
-    if event.message_type == constants.EVENT_MESSAGE_TYPE_PRIVATE:
-        session_key = get_session_key(user_id=event.user_id)
-    elif event.message_type == constants.EVENT_MESSAGE_TYPE_GROUP:
-        session_key = get_session_key(user_id=event.user_id, group_id=event.group_id)
-
     # process message if session key exists
-    if msg_exchanger := get_msg_exchanger(session_key):
-        if msg_exchanger.start_time <= event.time:
-            ret = msg_exchanger.process_message(request, event)
-            pop_msg_exchanger(session_key)
-            if ret:
-                return ret
+    if pool := MESSAGE_POOL.get(event.post_type):
+        if pool := pool.get(event.message_type):
+            # user message
+            user_id = getattr(event, 'user_id', None)
+            if fut := pool.pop(user_id):
+                if not (fut.done() or fut.cancelled()):
+                    fut.set_result(event)
 
 
 def call(coro):
-    task = EVENT_LOOP.create_task(coro)
+    loop = get_event_loop()
+    task = loop.create_task(coro)
     return task
+
+
+ASYNC_TASK_LIST = []
+
+
+async def create_async_task(func, params, max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
+    job = s2a(AsyncFuncJob.create)(
+        func, params,
+        job_type=AsyncFuncJob.IS_COROUTINE | AsyncFuncJob.HAS_SUB_TASK,
+        max_lifetime=max_lifetime,
+        max_retry=max_retry,
+    )
+    return job

@@ -36,8 +36,8 @@ USE_X_FORWARDED_HOST = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.auth',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
@@ -149,10 +149,19 @@ DATABASES = {
         }
     },
     'test': {
-        'default': {
+        'backup': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        }
+        },
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'myweb2_test',
+            'USER': 'myweb2_test',
+            'PASSWORD': 'vjq9g8349ghnb30f32e9z',
+            'HOST': 'hdcjh.xyz',
+            'PORT': '3306',
+            'init_command': "SET foreign_key_checks = 0;",
+        },
     },
 }
 DATABASES = DATABASES[ENV]
@@ -225,6 +234,11 @@ WECHAT = {
     'merchant_key': os.path.join(STATIC_ROOT, 'cert', 'apiclient_key.pem'),
     'merchant_cert': os.path.join(STATIC_ROOT, 'cert', 'apiclient_cert.pem'),
     'is_crypto': True,
+}
+
+ASYNC_JOB = {
+    'MAX_LIFETIME': 3600 * 12,
+    'MAX_RETRY': 3,
 }
 
 LOGGING = {
@@ -311,10 +325,10 @@ LOGGING = {
             'formatter': 'data',
             'encoding': 'utf8'
         },
-        'mybot': {
+        'async_job': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
+            'filename': os.path.join(BASE_DIR, 'log', 'async_job.log'),
             'formatter': 'data',
             'encoding': 'utf8'
         },
@@ -350,9 +364,9 @@ LOGGING = {
             'handlers': ['data', ],
             'propagate': False,
         },
-        'mybot': {
-            'handlers': ['mybot', ],
-            'propagate': True,
+        'async_job': {
+            'handlers': ['async_job', ],
+            'propagate': False,
         },
     },
 }

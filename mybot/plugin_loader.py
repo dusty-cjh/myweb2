@@ -6,9 +6,8 @@ from typing import Optional, List, Dict, Mapping, Iterable, ByteString
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 
-from .plugin_template import BaseRequestHandler
 from .models import AsyncJobLock, AsyncJob, OneBotEvent, create_event, AbstractOneBotEventHandler
-from .event_loop import process_message
+from . import event_loop
 
 EVENT_HANDLERS = dict()
 
@@ -61,10 +60,11 @@ import_plugins()
 
 
 async def dispatch(request: HttpRequest):
+    event_loop.get_event_loop()
     event = create_event(ujson.loads(request.body))
 
     # handle by task
-    if resp := process_message(request, event) is not None:
+    if resp := event_loop.process_message(request, event) is not None:
         return resp
 
     # handle by event

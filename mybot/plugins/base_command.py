@@ -29,7 +29,10 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
                 ret = await h(event, *cmd_args, **kwargs)
                 return ret
 
-    def _get_group_id(self, e: OneBotEvent):
+    def _get_group_id(self, e: OneBotEvent, *args, **kwargs):
+        if len(args) >= 2:
+            return int(args[2])
+
         gid = getattr(e, 'group_id', None)
         if not gid:
             return e.sender['group_id']

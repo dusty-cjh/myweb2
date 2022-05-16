@@ -44,3 +44,7 @@ class Logger:
         obj = self.__class__(self.log.name, *self._args, **self._fields.copy())
         obj._fields.update(**fields)
         return obj
+
+    def get_trace_id(self):
+        if len(self._args) > 0:
+            return self._args[-1]

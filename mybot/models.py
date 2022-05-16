@@ -402,6 +402,9 @@ class AbstractOneBotEventHandler:
     async def event_request_group_invite(self, event: OneBotEvent, *args, **kwargs):
         pass
 
+    async def meta_event(self, event: OneBotEvent, *args, **kwargs):
+        pass
+
 
 class UserProfile(models.Model):
     # user = models.OneToOneField('auth.User', on_delete=models.CASCADE, verbose_name='user')
