@@ -151,7 +151,7 @@ ASYNC_TASK_LIST = []
 async def create_async_task(func, params, max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
     job = s2a(AsyncFuncJob.create)(
         func, params,
-        job_type=AsyncFuncJob.IS_COROUTINE | AsyncFuncJob.HAS_SUB_TASK,
+        job_type=AsyncFuncJob.JOB_TYPE_IS_COROUTINE | AsyncFuncJob.JOB_TYPE_HAS_SUB_TASK,
         max_lifetime=max_lifetime,
         max_retry=max_retry,
     )

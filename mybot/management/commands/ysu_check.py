@@ -2,7 +2,7 @@ import asyncio as aio
 from asgiref.sync import async_to_sync as a2s
 from django.core.management.base import BaseCommand, CommandError
 from post.models import AsyncFuncJob
-from mybot.plugins.auto_approve import get_username_by_school_id, ysu_check_job
+from mybot.plugins.auto_approve import get_username_by_school_id, ysu_check
 
 
 """
@@ -45,10 +45,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('{}-{}'.format(ysu_id, uname)))
 
     def insert_ysu_check_job(self, user_id, group_id):
-        return AsyncFuncJob.create(
-            ysu_check_job, {
-                'user_id': user_id,
-                'group_id': group_id,
-            },
-            max_lifetime=ONE_DAY,
-        )
+        ysu_check.add_job(user_id, group_id)
+        # return AsyncFuncJob.create(
+        #     ysu_check_job, {
+        #         'user_id': user_id,
+        #         'group_id': group_id,
+        #     },
+        #     max_lifetime=ONE_DAY,
+        # )

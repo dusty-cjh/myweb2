@@ -85,7 +85,7 @@ def create_ysu_check_job(user_id, group_id):
     now = utils.get_datetime_now()
     obj = AsyncFuncJob.objects.create(
         func_name='mybot.plugins.auto_approve.ysu_check_job',
-        job_type=AsyncFuncJob.IS_COROUTINE,
+        job_type=AsyncFuncJob.JOB_TYPE_IS_COROUTINE,
         params=json.dumps(params),
         expire_time=now+timedelta(seconds=300),
         mtime=now,

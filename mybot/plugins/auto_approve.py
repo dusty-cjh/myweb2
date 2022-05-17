@@ -10,7 +10,7 @@ from asgiref.sync import async_to_sync as a2s, sync_to_async as s2a
 
 from common.logger import Logger
 from post.models import AsyncFuncJob, create_async_coroutine_job
-from post.decorators import get_async_job_logger
+from post.decorators import get_async_job_logger, async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import AbstractOneBotEventHandler, UserProfile as Profile
 from mybot.onebot.serializers import RequestGroupResponse, RequestGroupRequest, RequestFriendResponse
 from mybot.onebot.apis import get_session
@@ -56,6 +56,9 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 class OneBotEventHandler(AbstractOneBotEventHandler):
     reg_school_id = re.compile(r'\d{12}')
+
+    async def event_message_private_friend(self, event, *args, **kwargs):
+        pass
 
     async def event_request_friend(self, event, *args, **kwargs):
         logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
@@ -115,8 +118,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         if exists:
             return
 
-        job = await create_async_coroutine_job(ysu_check_job, dict(user_id=event.user_id, group_id=event.group_id),
-                                               max_lifetime=MAX_LIFETIME)
+        job = await ysu_check.add_job(event.user_id, event.group_id)
         print('added ysu check job: ', job, file=sys.stderr)
 
 
@@ -202,31 +204,32 @@ async def get_or_create_user_info(message: str, qq_number: int, college_student_
     return ret, None
 
 
-async def ysu_check_job(job: AsyncFuncJob):
-    # parse job
-    data = job.parse_params()
-    user_id, group_id = data.get('user_id'), data.get('group_id')
-
-    log = get_async_job_logger()
+@async_coroutine(max_lifetime=MAX_LIFETIME)
+async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int, *args, has_noti=False, **kwargs):
     success = False
+    log = ctx.log
     log.info(f'[ysu_check] start, user_id={user_id}, group_id={group_id}')
     print('[ysu_check] start, trace_id=', log.get_trace_id())
     try:
         # send noti
-        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_NOTI)
-        await aio.sleep(3)
-        resp = await OneBotApi.get_group_info(group_id=group_id)
-        if resp['retcode'] != 0:
-            log.info('[ysu_check] get_group_info of %d failed' % group_id, file=sys.stderr)
-            return
+        if not has_noti:
+            await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=MSG_NOTI)
+            await aio.sleep(3)
+            resp = await OneBotApi.get_group_info(group_id=group_id)
+            if resp['retcode'] != 0:
+                log.info('[ysu_check] get_group_info of %d failed' % group_id, file=sys.stderr)
+                return
 
-        log.info('remind user to input ysu id and user name')
-        group_info = resp['data']
-        await OneBotApi.send_private_msg(
-            user_id=user_id,
-            group_id=group_id,
-            message=MSG_REQUIRE_USER_INFO.format(group_name=group_info['group_name']),
-        )
+            log.info('remind user to input ysu id and user name')
+            group_info = resp['data']
+            await OneBotApi.send_private_msg(
+                user_id=user_id,
+                group_id=group_id,
+                message=MSG_REQUIRE_USER_INFO.format(group_name=group_info['group_name']),
+            )
+            await ctx.update_kwargs(has_noti=True)
+        else:
+            log.info('user has been notified')
 
         # get user info
         for i in range(2):
@@ -268,4 +271,3 @@ async def ysu_check_job(job: AsyncFuncJob):
 
     log.info('[ysu_check] end')
     print('[ysu_check] end, trace_id=', log.get_trace_id(), file=sys.stderr)
-

@@ -47,7 +47,7 @@ class ArticleAdmin(admin.ModelAdmin):
 
 @admin.register(AsyncFuncJob)
 class AsyncFuncJobAdmin(admin.ModelAdmin):
-    list_display = 'id func_name job_type params status retries expire_time mtime ctime result'.split()
+    list_display = 'id func_name job_type params status col_retry expire_time mtime ctime result'.split()
     fieldsets = (
         (_('Job Parameters'), {
             'fields': ('func_name', 'job_type', 'params', ),
@@ -59,6 +59,7 @@ class AsyncFuncJobAdmin(admin.ModelAdmin):
             'fields': ('status', 'retries', 'result', 'mtime'),
         }),
     )
+    actions = ['act_copy']
 
     def save_model(self, request, obj: AsyncFuncJob, form, change):
         now = utils.get_datetime_now()
@@ -70,3 +71,20 @@ class AsyncFuncJobAdmin(admin.ModelAdmin):
             obj.result = ''
 
         return super().save_model(request, obj, form, change)
+
+    def act_copy(self, request, queryset):
+        success_count = 0
+        for obj in queryset:
+            obj.pk = None
+            try:
+                obj.save()
+            except Exception as e:
+                pass
+            else:
+                success_count += 1
+        self.message_user(request, _(f'copied {success_count}/{len(queryset)} rows'))
+    act_copy.short_description = 'copy rows'
+
+    def col_retry(self, obj: AsyncFuncJob):
+        return f'{obj.retries}/{obj.max_retry}'
+    col_retry.short_description = 'Tries'

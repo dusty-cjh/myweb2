@@ -124,9 +124,9 @@ class AsyncFuncJob(models.Model):
 
     # job type selection
     JOB_TYPE_HELP = '1-is_coroutine, 2-has_sub_job, 4-is_sub_job'
-    IS_COROUTINE = 1
-    HAS_SUB_TASK = 2
-    IS_SUB_JOB = 4
+    JOB_TYPE_IS_COROUTINE = 1
+    JOB_TYPE_HAS_SUB_TASK = 1 << 1
+    JOB_TYPE_IS_SUB_JOB = 1 << 2
 
     func_name = models.CharField(max_length=256, db_index=True)
     job_type = models.PositiveSmallIntegerField(verbose_name='job type', default=1, help_text=JOB_TYPE_HELP, blank=True)
@@ -148,6 +148,10 @@ class AsyncFuncJob(models.Model):
 
     def parse_params(self) -> dict:
         return json.loads(self.params)
+
+    def parse_result(self) -> dict:
+        if self.result:
+            return json.loads(self.result)
 
     def set_params(self, data: dict):
         self.params = json.dumps(data)
@@ -277,11 +281,11 @@ class AsyncFuncJob(models.Model):
 
     @property
     def is_coroutine(self):
-        return self.job_type & self.IS_COROUTINE
+        return self.job_type & self.JOB_TYPE_IS_COROUTINE
 
     @property
     def has_sub_task(self):
-        return self.job_type & self.HAS_SUB_TASK
+        return self.job_type & self.JOB_TYPE_HAS_SUB_TASK
 
     def __str__(self):
         return f'AsyncFuncJob(id={self.id}, func={self.func_name})'
@@ -308,7 +312,7 @@ class AsyncFuncJob(models.Model):
         # set default value
         now = utils.get_datetime_now()
         if not job_type:
-            job_type = cls.IS_COROUTINE
+            job_type = cls.JOB_TYPE_IS_COROUTINE
         if not expire_time:
             expire_time = now + timedelta(seconds=max_lifetime)
         if isinstance(params, dict):
@@ -327,6 +331,37 @@ class AsyncFuncJob(models.Model):
         )
         return obj
 
+    def safe_update(self, raise_exception=True, **update_fields) -> Exception:
+        def handle_return(error):
+            if raise_exception:
+                raise error
+            return error
+
+        # global
+        cls = self.__class__
+
+        # validate
+        now = utils.get_datetime_now()
+        if self.expire_time <= now:
+            err = TimeoutError(f'{repr(self)} has timeout')
+            return handle_return(err)
+
+        # update
+        queryset = cls.objects.filter(
+            id=self.id,
+            mtime=self.mtime,
+        )
+        affected = queryset.update(**update_fields)
+        if affected != 1:
+            err = AssertionError(
+                '%s safe_update failed, affected(%d) != 1, maybe because of timeout' % (repr(self), affected)
+            )
+            return handle_return(err)
+
+        # set instance values
+        for name, val in update_fields.items():
+            setattr(self, name, val)
+
 
 def get_func_import_name(func):
     return '{}.{}'.format(func.__module__, func.__name__)
@@ -340,5 +375,5 @@ async def create_async_coroutine_job(
         max_lifetime=MAX_LIFETIME,
 ):
     params = locals()
-    params['job_type'] = AsyncFuncJob.IS_COROUTINE
+    params['job_type'] = AsyncFuncJob.JOB_TYPE_IS_COROUTINE
     return await s2a(AsyncFuncJob.create)(**params)
