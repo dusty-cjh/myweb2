@@ -1,6 +1,7 @@
 import os
 import sys
 import ujson
+import importlib
 from typing import Optional, List, Dict, Mapping, Iterable, ByteString
 
 from rest_framework.serializers import Serializer
@@ -14,15 +15,15 @@ EVENT_HANDLERS = dict()
 
 def register_event_handler(plugin):
     # import all modules
-    exec("from .plugins import %s" % plugin)
+    module = importlib.import_module('mybot.plugins.%s' % plugin)
 
     # get specified class
-    h = eval("getattr(%s, 'OneBotEventHandler', None)" % plugin)
+    h = getattr(module, 'OneBotEventHandler', None)
     if not h:
         return None, 'module has no OneBotEventHandler class'
 
     # get plugin name
-    plugin_name = eval("getattr(%s, 'PLUGIN_NAME', None)" % plugin)
+    plugin_name = getattr(module, 'PLUGIN_NAME', None)
     if not plugin_name or not isinstance(plugin_name, str):
         return None, 'module has no PLUGIN_NAME'
 
@@ -48,7 +49,7 @@ def import_plugins():
             failed.append((p, errmsg))
         else:
             EVENT_HANDLERS[p] = h
-            success.append((p, getattr(p, 'plugin_name', '')))
+            success.append((p, getattr(h, 'plugin_name', '')))
 
     for row in success:
         print('[plugin_loader.success]\t', '\t - '.join(row), file=sys.stderr)

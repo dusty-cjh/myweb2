@@ -37,6 +37,8 @@ MSG_REQUIRE_USER_INFO = """hello,
 请回复我：姓名+学号，
 例：202011010704，赵险峰
 
+❤️研究生系统未接入，可添加本Ji器人并留言，管理员将手动验证
+
 5min 内验证失败将踢出群聊呦~"""
 MSG_ERR_NO_SCHOOL_ID = '您所发的消息不含学号！请重新发送\n例：202011010704，赵险峰'
 MSG_ERR_RETRY = '验证失败！\n你还有一次重试机会'
@@ -98,6 +100,9 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         return resp
 
     async def event_notice_group_increase_approve(self, event, *args, **kwargs):
+        if settings.DEBUG:
+            return
+
         print('group increase event: ', event, file=sys.stderr)
         if event.group_id not in YSU_GROUP:
             return

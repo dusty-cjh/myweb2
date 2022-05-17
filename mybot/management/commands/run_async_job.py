@@ -1,7 +1,7 @@
 import os
 import sys
 
-from django.core.management import BaseCommand
+from django.core.management import BaseCommand, ManagementUtility
 from django.conf import settings
 
 
