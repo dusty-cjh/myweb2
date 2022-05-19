@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'django.contrib.flatpages',
     'wechat.apps.WechatConfig',
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
@@ -52,6 +54,7 @@ INSTALLED_APPS = [
     'django_ckeditor_5',
     'django_filters',
 ]
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

@@ -8,7 +8,7 @@ from django.http.request import HttpRequest
 from django.conf import settings
 from common import utils, constants as common_constants
 from post.models import AsyncFuncJob, MAX_RETRY, MAX_LIFETIME
-from .models import OneBotEvent, AsyncJobLock, AsyncJob
+from .models import OneBotEvent
 from . import settings as constants
 
 
@@ -28,7 +28,7 @@ async def run():
             pool.pop(key)
 
     while True:
-        end_time = utils.get_datetime_now() + timedelta(seconds=20)
+        end_time = utils.get_datetime_now() + timedelta(seconds=10)
         loop = get_event_loop()
 
         # process async job
@@ -86,9 +86,17 @@ MESSAGE_POOL = {
 def get_event_loop() -> aio.AbstractEventLoop:
     global _EVENT_LOOP, _EVENT_LOOP_THREAD
 
-    if not _EVENT_LOOP or _EVENT_LOOP.is_closed():
+    if not _EVENT_LOOP:
         _EVENT_LOOP = aio.new_event_loop()
-        _EVENT_LOOP_THREAD = Thread(target=main, args=(_EVENT_LOOP,), name='mybot.event_loop')
+
+    if _EVENT_LOOP.is_closed() or not _EVENT_LOOP_THREAD or not _EVENT_LOOP_THREAD.is_alive():
+        if _EVENT_LOOP_THREAD:
+            try:
+                _EVENT_LOOP_THREAD.join(1)
+            except Exception:
+                pass
+
+        _EVENT_LOOP_THREAD = Thread(target=main, args=(_EVENT_LOOP,), name='mybot.event_loop', daemon=True)
         _EVENT_LOOP_THREAD.start()
 
     return _EVENT_LOOP
@@ -134,9 +142,11 @@ def process_message(request: HttpRequest, event: OneBotEvent):
         if pool := pool.get(event.message_type):
             # user message
             user_id = getattr(event, 'user_id', None)
-            if fut := pool.pop(user_id):
+            if user_id in pool:
+                fut = pool.pop(user_id)
                 if not (fut.done() or fut.cancelled()):
                     fut.set_result(event)
+                    return {}
 
 
 def call(coro):

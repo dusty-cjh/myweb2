@@ -59,7 +59,7 @@ class AsyncFuncJobAdmin(admin.ModelAdmin):
             'fields': ('status', 'retries', 'result', 'mtime'),
         }),
     )
-    actions = ['act_copy']
+    actions = ['act_copy', 'act_to_pending', 'act_to_success', 'act_to_pause', ]
 
     def save_model(self, request, obj: AsyncFuncJob, form, change):
         now = utils.get_datetime_now()
@@ -84,6 +84,21 @@ class AsyncFuncJobAdmin(admin.ModelAdmin):
                 success_count += 1
         self.message_user(request, _(f'copied {success_count}/{len(queryset)} rows'))
     act_copy.short_description = 'copy rows'
+
+    def act_to_pending(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_PENDING)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to pending'))
+    act_to_pending.short_description = 'To pending'
+
+    def act_to_success(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_SUCCESS)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to success'))
+    act_to_success.short_description = 'To success'
+
+    def act_to_pause(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_PAUSE)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to pause'))
+    act_to_pause.short_description = 'To pause'
 
     def col_retry(self, obj: AsyncFuncJob):
         return f'{obj.retries}/{obj.max_retry}'

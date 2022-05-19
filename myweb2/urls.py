@@ -26,6 +26,7 @@ urlpatterns = [
     path('shop/', include('shop.urls')),
     path('resource/', include('resource.urls')),
     path('mybot/', include('mybot.urls')),
+    path('pages/', include('django.contrib.flatpages.urls')),
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
 ] \

@@ -20,6 +20,17 @@ def _parse_coroutine_job_params(func):
     return wrapper
 
 
+class AsyncJobException(BaseException):
+    def __init__(self, data: dict):
+        self.data = data
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return '|'.join([f'{k}={v}' for k, v in self.data.items()])
+
+
 class AsyncCoroutineFuncContext:
     def __init__(self, job: AsyncFuncJob, log: Logger):
         self.job = job
@@ -55,16 +66,16 @@ class AsyncCoroutineFunc:
         try:
             ret = await self.call(context, *args, **kwargs)
         except Exception as e:
-            return {
+            raise AsyncJobException({
                 'error': repr(e),
                 _TRACE_ID: log.get_trace_id()
-            }
+            })
 
         # return result
         if not isinstance(ret, dict):
             ret = repr(ret)
         ret = {
-            'data': ret,
+            '_ret': ret,
             _TRACE_ID: log.get_trace_id()
         }
         return ret

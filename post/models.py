@@ -109,6 +109,10 @@ class Summary(models.Model):
 
 
 class AsyncFuncJob(models.Model):
+    # pending: job will run in next event loop
+    # running:
+    # pause:   job will not be discovered by event loop currently
+    # fail:    failed by exception or set manually
     STATUS_PENDING = 1
     STATUS_RUNNING = 2
     STATUS_PAUSE = 3
@@ -298,9 +302,13 @@ class AsyncFuncJob(models.Model):
                 status=cls.STATUS_PENDING,
             ) |
             models.Q(
-                status__in=(cls.STATUS_RUNNING, cls.STATUS_PAUSE, cls.STATUS_FAIL),
+                status=cls.STATUS_RUNNING,
                 retries__lt=models.F('max_retry'),
                 expire_time__lte=now,
+            ) |
+            models.Q(
+                status=cls.STATUS_FAIL,
+                retries__lt=models.F('max_retry'),
             )
         )
 

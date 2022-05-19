@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Mapping, Iterable, ByteString
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 
-from .models import AsyncJobLock, AsyncJob, OneBotEvent, create_event, AbstractOneBotEventHandler
+from .models import OneBotEvent, create_event, AbstractOneBotEventHandler
 from . import event_loop
 
 EVENT_HANDLERS = dict()

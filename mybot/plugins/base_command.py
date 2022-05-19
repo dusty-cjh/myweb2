@@ -1,5 +1,5 @@
 import re
-from mybot.models import AbstractOneBotEventHandler
+from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin
 from mybot.models import OneBotEvent
 from mybot.onebot_apis import OneBotApi
 
@@ -12,30 +12,7 @@ MSG_ERR_INTERNAL_SERVER_ERROR = '处理出错！请重试'
 PLUGIN_NAME = '基本命令'
 
 
-class OneBotEventHandler(AbstractOneBotEventHandler):
-    async def event_message_private_group(self, event: OneBotEvent, *args, **kwargs):
-        return await self.dispatch_cmd(event, *args, **kwargs)
-
-    async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
-        return await self.dispatch_cmd(event, *args, **kwargs)
-
-    async def dispatch_cmd(self, event: OneBotEvent, *args, **kwargs):
-        cmd_args = event.message.strip().split()
-        cmd_args.extend(args)
-
-        if len(cmd_args) > 0:
-            h = getattr(self, f'cmd_{cmd_args[0]}', None)
-            if h:
-                ret = await h(event, *cmd_args, **kwargs)
-                return ret
-
-    def _get_group_id(self, e: OneBotEvent, *args, **kwargs):
-        if len(args) >= 2:
-            return int(args[2])
-
-        gid = getattr(e, 'group_id', None)
-        if not gid:
-            return e.sender['group_id']
+class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
 
     async def cmd_kick(self, event: OneBotEvent, *args, **kwargs):
         # check params
@@ -46,7 +23,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
             }
 
         # get info
-        group_id = self._get_group_id(event)
+        group_id = int(args[2]) if len(args) >= 2 else self._get_group_id(event)
         sender_id = event.user_id
         resp = await OneBotApi.get_group_member_info_with_cache(group_id, sender_id)
         if resp.get('retcode') != 0:

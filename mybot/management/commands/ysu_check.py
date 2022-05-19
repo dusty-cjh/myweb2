@@ -21,7 +21,6 @@ class Command(BaseCommand):
         parser.add_argument('--job')
 
     def handle(self, *args, **options):
-        print(args, options)
         # insert job
         job = options.get('job')
         if job:
