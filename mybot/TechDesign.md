@@ -1,4 +1,15 @@
-## async job 
+## onebot plugin configuration admin
+
+## background
+
+currently we got no plugin config admin, we need that.
+
+our existing plugin load strategy is to iterate each file or dir in plugin dir.
+and then import it as a module
+
+we're import plugin config using 
+
+## async job
 
 pseudo code 
 

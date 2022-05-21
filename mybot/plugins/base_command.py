@@ -1,5 +1,5 @@
 import re
-from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin
+from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin, AbstractOneBotPluginConfig
 from mybot.models import OneBotEvent
 from mybot.onebot_apis import OneBotApi
 
@@ -10,6 +10,11 @@ MSG_ERR_BAD_PERMISSION = '无权操作！'
 MSG_ERR_INTERNAL_SERVER_ERROR = '处理出错！请重试'
 
 PLUGIN_NAME = '基本命令'
+
+
+class PluginConfig(AbstractOneBotPluginConfig):
+    name = 'base_command'
+    verbose_name = '基础命令'
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):

@@ -151,6 +151,12 @@ class AbstractOneBotEventHandler:
         pass
 
 
+class AbstractOneBotPluginConfig:
+    name = None
+    verbose_name = None
+    short_description = ''
+
+
 class OneBotCmdMixin:
     async def event_message_private_friend(self, event, *args, **kwargs):
         return await self.dispatch_cmd(event, *args, **kwargs)
@@ -220,4 +226,28 @@ class UserProfile(models.Model):
             return int(self.college_student_number[:4])
         else:
             return int(f'20{self.college_student_number[:2]}')
+
+
+class PluginConfigs(models.Model):
+    name = models.CharField(max_length=32, unique=True, verbose_name='name')
+    verbose_name = models.CharField(max_length=32)
+    configs = models.TextField()
+    ctime = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = verbose_name_plural = 'PluginConfigs'
+        ordering = ['-ctime', 'name', 'verbose_name']
+
+    def __str__(self):
+        return f'PluginConfigs(name={self.name})'
+
+    @property
+    def json_form_data(self):
+        return getattr(self, '_json_form_data', {})
+
+    @json_form_data.setter
+    def json_form_data(self, value: dict):
+        setattr(self, '_json_form_data', value)
+
+
 

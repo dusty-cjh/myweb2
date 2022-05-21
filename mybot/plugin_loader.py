@@ -1,16 +1,29 @@
+import json
 import os
 import sys
 import ujson
 import importlib
+import inspect
+from functools import wraps
 from typing import Optional, List, Dict, Mapping, Iterable, ByteString
 
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 
-from .models import OneBotEvent, create_event, AbstractOneBotEventHandler
+from .models import OneBotEvent, create_event, AbstractOneBotEventHandler, AbstractOneBotPluginConfig, PluginConfigs
 from . import event_loop
 
-EVENT_HANDLERS = dict()
+
+class _module_hint:
+    OneBotEventHandler: AbstractOneBotEventHandler
+    PluginConfig: AbstractOneBotPluginConfig
+
+
+PLUGIN_MODULES = dict()
+
+
+def get_plugin(name: str) -> _module_hint:
+    return PLUGIN_MODULES.get(name)
 
 
 def register_event_handler(plugin):
@@ -37,24 +50,59 @@ def register_event_handler(plugin):
 
 
 def import_plugins():
-    success = []
-    failed = []
     plugin_list = os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plugins'))
 
     # import file plugin
-    plugins = [x[:-3] for x in plugin_list if x.endswith('.py') and x != '__init__.py']
+    plugins = [x[:-3] for x in plugin_list if x.endswith('.py') and not x.startswith('_')]
     for p in plugins:
-        h, errmsg = register_event_handler(p)
-        if errmsg:
-            failed.append((p, errmsg))
-        else:
-            EVENT_HANDLERS[p] = h
-            success.append((p, getattr(h, 'plugin_name', '')))
+        # import modules
+        plugin_module_name = 'mybot.plugins.%s' % p
+        plugin_module = importlib.import_module(plugin_module_name)
 
-    for row in success:
-        print('[plugin_loader.success]\t', '\t - '.join(row), file=sys.stderr)
-    for row in failed:
-        print('[plugin_loader.failed]\t', '\t - '.join(row), file=sys.stderr)
+        # validate
+        h = getattr(plugin_module, 'OneBotEventHandler', None)
+        if not h:
+            raise ImportError('plugin %s has no OneBotEventHandler class' % plugin_module_name)
+        if not issubclass(h, AbstractOneBotEventHandler):
+            raise ImportError(
+                'handler %s.OneBotEventHandler must be subclass of AbstractOneBotEventHandler' % plugin_module_name)
+        cfg = getattr(plugin_module, 'PluginConfig', None)
+        if not cfg:
+            raise ImportError('plugin %s has no PluginConfig class' % plugin_module_name)
+        if not issubclass(cfg, AbstractOneBotPluginConfig):
+            raise ImportError(
+                'handler %s.PluginConfig must be subclass of AbstractOneBotPluginConfig' % plugin_module_name)
+        if cfg.name is None:
+            raise ValueError('%s.PluginConfig.name not be assigned' % plugin_module_name)
+        if cfg.verbose_name is None:
+            cfg.verbose_name = cfg.name
+
+        # register plugin
+        PLUGIN_MODULES[cfg.name] = plugin_module
+
+        # makesure plugin config has exist
+        config_items = {}
+        for k in dir(plugin_module.PluginConfig):
+            if not k.startswith('_'):
+                v = getattr(plugin_module.PluginConfig, k, None)
+                config_items[k] = v
+        kwargs = dict(
+            name=config_items.pop('name'),
+            verbose_name=config_items.pop('verbose_name'),
+        )
+        try:
+            plugin_config = PluginConfigs.objects.get(name=plugin_module.PluginConfig.name)
+        except PluginConfigs.DoesNotExist:
+            kwargs['configs'] = json.dumps(config_items) or '{}',
+            PluginConfigs.objects.create(**kwargs)
+        else:
+            config_items.update(json.loads(plugin_config.configs))
+            configs = json.dumps(config_items)
+            if configs != plugin_config.configs:
+                plugin_config.configs = configs
+                plugin_config.save()
+
+        print('[plugin_loader]\t', '\t - '.join([cfg.name, cfg.verbose_name, cfg.short_description]), file=sys.stderr)
 
 
 import_plugins()
@@ -69,8 +117,8 @@ async def dispatch(request: HttpRequest):
         return resp
 
     # handle by event
-    for plugin_name, h_cls in EVENT_HANDLERS.items():
-        h = h_cls(request=request)
+    for plugin_name, module in PLUGIN_MODULES.items():
+        h = module.OneBotEventHandler(request=request)
         resp = await h.dispatch(event)
         if isinstance(resp, Serializer):
             return resp.data
