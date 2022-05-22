@@ -237,7 +237,8 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
     ret = {}
     log = ctx.log
     log.info(f'[ysu_check] start, user_id={user_id}, group_id={group_id}')
-    print('[ysu_check] start, trace_id=', log.get_trace_id())
+    if settings.DEBUG:
+        print('[ysu_check] start, trace_id=', log.get_trace_id())
 
     if ysu_info:
         log.info('ysu_id and name not match')
@@ -314,5 +315,6 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
                 await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=msg)
 
     log.info('[ysu_check] end')
-    print('[ysu_check] end, trace_id=', log.get_trace_id(), file=sys.stderr)
+    if settings.DEBUG:
+        print('[ysu_check] end, trace_id=', log.get_trace_id(), file=sys.stderr)
     return ret

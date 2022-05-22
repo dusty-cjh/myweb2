@@ -17,23 +17,7 @@ async def index(request: HttpRequest, *args, **kwargs):
         try:
             return JsonResponse(resp)
         except Exception as e:
-            request.log.error('mybot.apis.index|exception=%s' % repr(e))
+            request.log.error('mybot.apis.index|response=%s|exception=%s' % (resp, repr(e)))
             return HttpResponse(b'', status=200)
     else:
         return HttpResponse(b'', status=200)
-
-
-async def test_async(request: HttpRequest, *args, **kwargs):
-    global loop
-
-    if loop is None:
-        loop = aio.get_running_loop()
-    else:
-        return JsonResponse({
-            'is_equal': loop == aio.get_running_loop(),
-            'equal': loop is aio.get_running_loop(),
-        })
-
-    return JsonResponse({
-        'status': 'success'
-    })
