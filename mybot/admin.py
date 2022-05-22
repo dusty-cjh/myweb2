@@ -4,6 +4,7 @@ from django.db import models
 from django import forms
 from django.utils.translation import gettext as _
 from .models import UserProfile, PluginConfigs
+from .plugin_loader import get_plugin
 
 
 @admin.register(UserProfile)
@@ -22,23 +23,26 @@ class PluginConfigsAdmin(admin.ModelAdmin):
             return super().get_form(request, obj, change, **kwargs)
 
         # shrink fields to original data
-        if not obj.json_form_data:
-            obj.json_form_data = json.loads(obj.configs)
-        json_form_data = obj.json_form_data
+        # json_form_data = obj.json_form_data
+        plugin = get_plugin(obj.name)
+        plugin_config = plugin.PluginConfig.from_db_config(obj)
+        json_form_fields = plugin_config.json_form_fields()
         fields = kwargs.get('fields')
         if fields:
             fields = set(fields)
-            for cfg_name in json_form_data.keys():
+            for cfg_name in json_form_fields:
                 if cfg_name in fields:
                     fields.remove(cfg_name)
             kwargs['fields'] = list(fields)
 
-        # create inner json form
+        # register form fields
         attrs = {}
         form = super().get_form(request, obj, change, **kwargs)
-        for cfg_name, cfg_val in json_form_data.items():
+        for cfg_name in json_form_fields:
+            cfg_field_class = getattr(plugin_config.__class__, cfg_name)
+            cfg_val = getattr(plugin_config, cfg_name)
             form_field_kwargs = {
-                'label': cfg_name.replace('_', ' ').replace('-', ' '),
+                'label': cfg_field_class.verbose_name,
                 'required': False,
                 'initial': cfg_val,
             }
@@ -58,22 +62,20 @@ class PluginConfigsAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj: PluginConfigs, form: forms.ModelForm, change):
         data = form.cleaned_data
-        json_form_data = json.loads(obj.configs)
-        for cfg_name in json_form_data.keys():
-            if cfg_name in data:
-                json_form_data[cfg_name] = data[cfg_name]
-        obj.configs = json.dumps(json_form_data)
+        obj.configs = json.dumps(data)
         return super().save_model(request, obj, form, change)
 
     def get_fields(self, request, obj: PluginConfigs = None):
-        fields = super().get_fields(request, obj)
+        # fields = super().get_fields(request, obj)
+        plugin = get_plugin(obj.name)
+        plugin_config = plugin.PluginConfig.from_db_config(obj)
+        fields = plugin_config.readonly_fields.copy()
         if obj is None:
             return fields
 
-        if not obj.json_form_data:
-            obj.json_form_data = json.loads(obj.configs)
         fields_set = set(fields)
-        for cfg_name in obj.json_form_data.keys():
+        json_form_fields = plugin_config.json_form_fields()
+        for cfg_name in sorted(json_form_fields):
             if cfg_name not in fields_set:
                 fields.append(cfg_name)
         return fields

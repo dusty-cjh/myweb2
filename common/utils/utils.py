@@ -35,3 +35,23 @@ def chain(ar: list, sep='', prefix=None):
 def get_datetime_now():
     ret = datetime.datetime.now(tz=settings.PY_TIME_ZONE)
     return ret
+
+
+def update_json_obj(old: dict, latest: dict) -> dict:
+    for key, old_val in old.items():
+        latest_val = latest.get(key)
+        if latest_val and old_val != latest_val:
+            old[key] = latest[key]
+
+    return old
+
+
+def new_counter(start=0, step=1, to_string=False):
+    def counter():
+        nonlocal start
+
+        while True:
+            ret = str(start) if to_string else start
+            yield ret
+            start += step
+    return counter

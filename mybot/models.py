@@ -1,3 +1,4 @@
+import json
 import random
 import ujson
 from collections import namedtuple
@@ -10,9 +11,12 @@ from django.contrib.auth.models import User
 from django.core import serializers
 
 from common.middlewares import LoggingContextAdapter
+from common.utils import serializer
 from common import utils
 from mybot.onebot.serializers import OneBotEvent
 from . import settings as constants
+
+CLASS_NAME_PLUGIN_CONFIG = 'PluginConfig'
 
 
 def create_event(event: dict) -> OneBotEvent:
@@ -151,10 +155,88 @@ class AbstractOneBotEventHandler:
         pass
 
 
-class AbstractOneBotPluginConfig:
-    name = None
-    verbose_name = None
-    short_description = ''
+# class SyncPluginConfigWithDB(serializer.SerializerMeta):
+#     def __init__(cls, name, bases, attr_dict):
+#         super().__init__(name, bases, attr_dict)
+#         if name == CLASS_NAME_PLUGIN_CONFIG and AbstractOneBotPluginConfig in bases:
+#             # global var
+#             plugin_name = cls.name
+#             plugin_default_configs = {}
+#             for cfg_name in filter(lambda x: not x.startswith('_'), dir(cls)):
+#                 plugin_default_configs[cfg_name] = getattr(cls, cfg_name)
+#             plugin_default_configs.pop('name')
+#             plugin_default_configs.pop('verbose_name')
+#             plugin_default_configs.pop('short_description')
+#
+#             # sync config with DB
+#             try:
+#                 plugin_db_configs = PluginConfigs.objects.get(name=plugin_name)
+#             except PluginConfigs.DoesNotExist:
+#                 PluginConfigs.objects.create(
+#                     name=plugin_name,
+#                     verbose_name=cls.verbose_name,
+#                     short_description=cls.short_description,
+#                     configs=json.dumps(plugin_default_configs),
+#                 )
+#                 return
+#             # else:
+#             #     plugin_db_configs
+
+
+class AbstractOneBotPluginConfig(serializer.Serializer):
+    name = serializer.CharField(default='')
+    verbose_name = serializer.CharField(default='')
+    short_description = serializer.CharField(default='')
+    readonly_fields = 'name verbose_name'.split()
+
+    @classmethod
+    def _get_module_name(cls):
+        return cls.__module__.split('.')[-1]
+
+    @classmethod
+    def _serialize_default_config(cls):
+        plugin_default_config = {}
+        for field_name in cls._fields:
+            field = getattr(cls, field_name)
+            plugin_default_config[field_name] = field.default_value
+        if not plugin_default_config['name']:
+            plugin_default_config['name'] = cls._get_module_name()
+        if not plugin_default_config['verbose_name']:
+            plugin_default_config['verbose_name'] = plugin_default_config['name']
+        return plugin_default_config
+
+    @classmethod
+    def get_default(cls):
+        plugin_default_config = cls._serialize_default_config()
+        return cls(**plugin_default_config)
+
+    @classmethod
+    def get_latest(cls):
+        plugin_default_config = cls._serialize_default_config()
+        try:
+            obj = PluginConfigs.objects.get(name=cls._get_module_name())
+        except PluginConfigs.DoesNotExist:
+            # write default config to DB if it not exists
+            kwargs = {}
+            for field_name in cls.readonly_fields:
+                kwargs[field_name] = plugin_default_config.pop(field_name)
+            kwargs['configs'] = json.dumps(plugin_default_config)
+            PluginConfigs.objects.create(**kwargs)
+            return cls.get_default()
+        else:
+            # read and then flush in DB plugin config
+            plugin_db_config = json.loads(obj.configs)
+            utils.update_json_obj(plugin_default_config, plugin_db_config)
+            return cls(**plugin_default_config)
+
+    @classmethod
+    def from_db_config(cls, obj):
+        plugin_configs = utils.update_json_obj(cls._serialize_default_config(), json.loads(obj.configs))
+        return cls(**plugin_configs)
+
+    @classmethod
+    def json_form_fields(cls):
+        return cls._fields ^ set(cls.readonly_fields)
 
 
 class OneBotCmdMixin:
@@ -243,11 +325,15 @@ class PluginConfigs(models.Model):
 
     @property
     def json_form_data(self):
-        return getattr(self, '_json_form_data', {})
+        json_form_data = getattr(self, '_json_form_data', {})
+        if json_form_data:
+            return json_form_data
 
-    @json_form_data.setter
-    def json_form_data(self, value: dict):
-        setattr(self, '_json_form_data', value)
-
-
+        # parse json form data
+        if not self.configs:
+            self.configs = '{}'
+        else:
+            ret = json.loads(self.configs)
+        setattr(self, '_json_form_data', ret)
+        return ret
 

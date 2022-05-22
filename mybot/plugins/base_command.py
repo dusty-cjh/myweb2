@@ -1,5 +1,5 @@
 import re
-from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin, AbstractOneBotPluginConfig
+from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin, AbstractOneBotPluginConfig, serializer
 from mybot.models import OneBotEvent
 from mybot.onebot_apis import OneBotApi
 
@@ -13,8 +13,9 @@ PLUGIN_NAME = '基本命令'
 
 
 class PluginConfig(AbstractOneBotPluginConfig):
-    name = 'base_command'
-    verbose_name = '基础命令'
+    name = serializer.CharField(default='base_command')
+    verbose_name = serializer.CharField(default='基础命令')
+    cmd_prefix = serializer.CharField(default='/')
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
