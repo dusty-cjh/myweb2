@@ -8,6 +8,7 @@ from django.http.request import HttpRequest
 from django.conf import settings
 from common import utils, constants as common_constants
 from post.models import AsyncFuncJob, MAX_RETRY, MAX_LIFETIME
+from post.decorators import get_async_job_logger
 from .models import OneBotEvent
 from . import settings as constants
 
@@ -64,23 +65,37 @@ async def run():
 
 
 def main(l: aio.AbstractEventLoop):
-    print('[mybot.event_loop] start', file=sys.stderr)
+    if settings.DEBUG:
+        print('[mybot.event_loop] start', file=sys.stderr)
+    else:
+        log = get_async_job_logger('event_loop.main')
+        log.info('[mybot.event_loop] start')
     try:
         l.run_until_complete(run())
     except KeyboardInterrupt:
-        print('[mybot.event_loop] event loop quit: KeyboardInterrupt')
+        if settings.DEBUG:
+            print('[mybot.event_loop] event loop quit: KeyboardInterrupt')
+        else:
+            log.warning('[mybot.event_loop] event loop quit: KeyboardInterrupt')
     except RuntimeError as e:
         if settings.DEBUG:
             raise e
         if repr(e) not in common_constants.PYTHON_INTERPRETER_SHUTDOWN:
-            print('[mybot.event_loop] event loop have to restart, because runtime error: %s' % repr(e), file=sys.stderr)
+            if settings.DEBUG:
+                print('[mybot.event_loop] event loop have to restart, because runtime error: %s' % repr(e), file=sys.stderr)
+            else:
+                log.error('[mybot.event_loop] event loop have to restart, because runtime error: %s' % repr(e))
             main(l)
     except Exception as e:
         if settings.DEBUG:
             raise e
-        print('[mybot.event_loop] event loop have to restart, because exception: %s' % repr(e), file=sys.stderr)
+        else:
+            log.error('[mybot.event_loop] event loop have to restart, because exception: %s' % repr(e))
         main(l)
-    print('[mybot.event_loop] done', file=sys.stderr)
+    if settings.DEBUG:
+        print('[mybot.event_loop] done', file=sys.stderr)
+    else:
+        log.warning('[mybot.event_loop] done')
 
 
 _EVENT_LOOP = None

@@ -6,9 +6,9 @@ import importlib
 import inspect
 from functools import wraps
 from typing import Optional, List, Dict, Mapping, Iterable, ByteString
-
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
+from django.conf import settings
 from common import utils
 from .models import OneBotEvent, create_event, AbstractOneBotEventHandler, AbstractOneBotPluginConfig, PluginConfigs
 from . import event_loop
@@ -103,7 +103,8 @@ def import_plugins():
         #         plugin_config.configs = configs
         #         plugin_config.save()
 
-        print('[plugin_loader]\t', '\t - '.join([cfg.name, cfg.verbose_name, cfg.short_description]), file=sys.stderr)
+        if settings.DEBUG:
+            print('[plugin_loader]\t', '\t - '.join([cfg.name, cfg.verbose_name, cfg.short_description]), file=sys.stderr)
 
 
 import_plugins()
