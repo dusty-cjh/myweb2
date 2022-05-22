@@ -1,5 +1,6 @@
 from datetime import timedelta
 import ujson as json
+import importlib
 from functools import wraps
 from typing import Callable
 from asgiref.sync import sync_to_async as s2a
@@ -212,10 +213,12 @@ class AsyncFuncJob(models.Model):
 
     def _import_func(self):
         path, func_name = self.func_name.rsplit('.', 1)
-        exec(f'from {path} import {func_name}')
-        func = eval(f'{func_name}')
+        module = importlib.import_module(path)
+        func = getattr(module, func_name, None)
+        if func is None:
+            raise ImportError(f'package {path} have no function named: {func_name}')
         if not callable(func):
-            raise AssertionError(f'{self} function is not callable')
+            raise ImportError(f'{self} function is not callable')
 
         return func
 

@@ -35,9 +35,19 @@ async def run():
         job_list = await s2a(lambda: list(AsyncFuncJob.get_callable_list()))()
         for job in job_list:
             if job.is_coroutine:
-                loop.create_task(job.get_coroutine()(job))
+                try:
+                    func = job.get_coroutine()
+                except ImportError as e:
+                    await s2a(job.set_error)(dict(exception=repr(e)))
+                else:
+                    loop.create_task(func(job))
             else:
-                loop.run_in_executor(None, job.get_function()(job))
+                try:
+                    func = job.get_function()
+                except ImportError as e:
+                    await s2a(job.set_error)(dict(exception=repr(e)))
+                else:
+                    loop.run_in_executor(None, func, job)
 
         # process timeout event
         delete_done_event(MESSAGE_POOL)

@@ -296,10 +296,16 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
                 log.info('has reach max retry limitation')
                 await OneBotApi.send_private_msg(
                     user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_GONNA_KICK_OUT)
+                await aio.sleep(3)
+                await OneBotApi.set_group_kick(user_id=user_id, group_id=group_id, reject_add_request=False)
+                ret['status'] = 'fail'
+                ret['reason'] = 'user has reach max retry'
                 return ret
             else:
                 await OneBotApi.send_private_msg(
                     user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_CHECK_LATER)
+                ret['status'] = 'fail'
+                ret['reason'] = 'ysu id format right, but user info not found'
                 return ret
         else:
             ret['err'] = 'verify success'

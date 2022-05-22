@@ -271,7 +271,7 @@ class UserProfile(models.Model):
     CERT_ADMIN = 1 << 1
 
     # user = models.OneToOneField('auth.User', on_delete=models.CASCADE, verbose_name='user')
-    name = models.CharField(max_length=20, verbose_name='name')
+    name = models.CharField(max_length=64, verbose_name='name')
     qq_number = models.PositiveIntegerField(verbose_name='qq')
     college = models.CharField(max_length=20, verbose_name='college name', default='YSU')
     grade = models.CharField(max_length=20, verbose_name='grade', default='')

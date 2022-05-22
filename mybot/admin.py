@@ -4,7 +4,6 @@ from django.db import models
 from django import forms
 from django.utils.translation import gettext as _
 from .models import UserProfile, PluginConfigs
-from .plugin_loader import get_plugin
 
 
 @admin.register(UserProfile)
@@ -19,6 +18,7 @@ class PluginConfigsAdmin(admin.ModelAdmin):
     fields = 'name verbose_name configs'.split()
 
     def get_form(self, request, obj: PluginConfigs = None, change=False, **kwargs):
+        from .plugin_loader import get_plugin   # to avoid error of import when call django command
         if not change:
             return super().get_form(request, obj, change, **kwargs)
 
@@ -66,6 +66,7 @@ class PluginConfigsAdmin(admin.ModelAdmin):
         return super().save_model(request, obj, form, change)
 
     def get_fields(self, request, obj: PluginConfigs = None):
+        from .plugin_loader import get_plugin   # to avoid error of import when call django command
         # fields = super().get_fields(request, obj)
         plugin = get_plugin(obj.name)
         plugin_config = plugin.PluginConfig.from_db_config(obj)
