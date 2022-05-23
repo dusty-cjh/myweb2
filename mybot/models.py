@@ -8,7 +8,7 @@ from django.db import models
 from django.http.request import HttpRequest
 from django.db.models import Q, F, Func, Value
 from django.contrib.auth.models import User
-from django.core import serializers
+from django.core.cache import cache
 
 from common.middlewares import LoggingContextAdapter
 from common.utils import serializer

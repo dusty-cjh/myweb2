@@ -30,7 +30,7 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 class PluginConfig(AbstractOneBotPluginConfig):
     YSU_GROUP = [1143835437, 645125440, 1127243020]
-    MAX_LIFETIME = serializer.IntField(verbose_name='config - task max lifetime', default=600 if settings.DEBUG else 3600 * 4)
+    MAX_LIFETIME = serializer.IntField(verbose_name='config - task max lifetime', default=60 if settings.DEBUG else 1800)
     # JUMP_HINT = {'研究生', '里仁'}
 
     MSG_NOTICE_WELCOME = """注意！
@@ -229,8 +229,11 @@ async def create_user_profile(message: str, qq_number: int, college_student_numb
     return profile, err
 
 
-@async_coroutine(max_lifetime=plugin_config.MAX_LIFETIME * 3)
+@async_coroutine(max_lifetime=3600*12)
 async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int, *args, ysu_info=None, has_noti=False, **kwargs):
+    global plugin_config
+    plugin_config = await s2a(PluginConfig.get_latest)()
+
     if not user_id or not group_id:
         raise ValueError('user_id and group_id must be provided')
 
@@ -272,10 +275,16 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
     log.info('waiting for user to input correct ysu id')
     school_id, message, err = await get_school_id(user_id, group_id)
     if err:
-        log.info('get correct ysu id failed, error={}', err)
-        ret['err'] = err
-        await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_GONNA_KICK_OUT)
-        return ret
+        if ctx.job.max_retry <= ctx.job.retries:
+            log.info('has reach max retry limitation')
+            await OneBotApi.send_private_msg(
+                user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_GONNA_KICK_OUT)
+            await aio.sleep(3)
+            await OneBotApi.set_group_kick(user_id=user_id, group_id=group_id, reject_add_request=False)
+            ret['status'] = 'fail'
+            ret['reason'] = 'user has reach max retry'
+        log.info('get correct ysu id failed, error={}', repr(err))
+        raise err
 
     log.info('get ysu student info from jwc.ysu.edu.cn, user-input: {}', message)
     profile, err = await create_user_profile(message, user_id, school_id)
@@ -309,7 +318,7 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
                 ret['reason'] = 'ysu id format right, but user info not found'
                 return ret
         else:
-            ret['err'] = 'verify success'
+            ret['status'] = 'verify success'
             log.info(f'ysu_check success, send success notice to user-{user_id}')
             for msg in plugin_config.MSG_NOTICE_SUCCESS.split('\n\n'):
                 await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=msg)

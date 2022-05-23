@@ -20,7 +20,7 @@ def _parse_coroutine_job_params(func):
     return wrapper
 
 
-class AsyncJobException(BaseException):
+class AsyncJobException(Exception):
     def __init__(self, data: dict):
         self.data = data
 

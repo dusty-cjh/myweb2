@@ -1,4 +1,6 @@
+import traceback
 from datetime import timedelta
+import asyncio as aio
 import ujson as json
 import importlib
 from functools import wraps
@@ -209,6 +211,9 @@ class AsyncFuncJob(models.Model):
             expire_time=now + timedelta(seconds=self.max_lifetime),
         )
         self.mtime = now
+        self.retries += 1
+        self.status = self.STATUS_RUNNING
+        self.expire_time = now + timedelta(seconds=self.max_lifetime)
         return affected
 
     def _import_func(self):
@@ -241,6 +246,7 @@ class AsyncFuncJob(models.Model):
             except Exception as e:
                 result = {
                     'exception': repr(e),
+                    'stack_info': traceback.format_exc(),
                 }
                 job.set_error(result, retry=True)
             else:
@@ -275,6 +281,8 @@ class AsyncFuncJob(models.Model):
                     'exception': repr(e),
                 }
                 await s2a(job.set_error)(result, retry=True)
+            except aio.TimeoutError:
+                print('catched timeout error')
             else:
                 if isinstance(result, dict):
                     await s2a(job.set_result)(result)

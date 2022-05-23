@@ -237,7 +237,7 @@ WECHAT = {
 }
 
 ASYNC_JOB = {
-    'MAX_LIFETIME': 3600 * 12,
+    'MAX_LIFETIME': 3600 * 2,
     'MAX_RETRY': 3,
 }
 
@@ -334,7 +334,7 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console', 'daemon', ],
+        'handlers': ['console', 'daemon', ] if DEBUG else ['daemon', ],
         'level': 'INFO',
     },
     'loggers': {

@@ -5,7 +5,7 @@ from concurrent import futures
 from datetime import datetime, timedelta
 from django.test import TestCase
 from common import utils
-from common.tests import tell_now, atell_now
+from common.tests import tell_now, atell_now, raise_exception
 from post.models import AsyncFuncJob, get_func_import_name
 
 
@@ -16,6 +16,7 @@ class AsyncFuncTestCase(TestCase):
         self.j2 = AsyncFuncJob.create(tell_now, {"msg": "hello~ midnight:", "fail": 1}, max_retry=2).id
         self.j3 = AsyncFuncJob.create(tell_now, {"msg": "test_race_competition:", "delay": 3}, max_retry=2).id
         self.j4 = AsyncFuncJob.create(atell_now, {"msg": "hello~ midnight:"}).id
+        self.j5 = AsyncFuncJob.create(raise_exception, {"msg": "hello exception"}).id
 
     def test_runnable(self):
         # lion = Animal.objects.get(name="lion")
@@ -78,6 +79,14 @@ class AsyncFuncTestCase(TestCase):
     def test_get_function_full_import_path(self):
         name = get_func_import_name(utils.get_datetime_now)
         self.assertEqual(name, 'common.utils.utils.get_datetime_now')
+
+    def test_catch_exception(self):
+        job = AsyncFuncJob.objects.get(id=self.j5)
+        func = job.get_function()
+        resp = func(job)
+        print('resp:', resp)
+        job = AsyncFuncJob.objects.get(id=job.id)
+        self.assertEqual(job.status, job.STATUS_FAIL)
 
 
 def create_ysu_check_job(user_id, group_id):

@@ -39,3 +39,8 @@ async def atell_now(job: AsyncFuncJob):
 
     print(msg, get_datetime_now(), file=sys.stderr)
 
+
+def raise_exception(job: AsyncFuncJob):
+    data = job.parse_params()
+    raise TimeoutError(data.get('msg'))
+

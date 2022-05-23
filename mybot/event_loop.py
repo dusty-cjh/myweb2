@@ -29,7 +29,7 @@ async def run():
             pool.pop(key)
 
     while True:
-        end_time = utils.get_datetime_now() + timedelta(seconds=10)
+        end_time = utils.get_datetime_now() + timedelta(seconds=5)
         loop = get_event_loop()
 
         # process async job
