@@ -3,6 +3,7 @@ import sys
 import time
 
 from post.models import AsyncFuncJob
+from post.decorators import async_coroutine
 from .utils import get_datetime_now
 
 
@@ -44,3 +45,8 @@ def raise_exception(job: AsyncFuncJob):
     data = job.parse_params()
     raise TimeoutError(data.get('msg'))
 
+
+@async_coroutine()
+async def hello(ctx, name: str, echo: str = None):
+    print('hello %s' % name)
+    return echo

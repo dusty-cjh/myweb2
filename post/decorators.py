@@ -1,11 +1,18 @@
 import asyncio as aio
+import inspect
+import json
+import traceback
+import typing
+import random
 from functools import wraps
+from datetime import timedelta
 from asgiref.sync import sync_to_async as s2a
 from common.logger import Logger
+from common import utils
 from .models import AsyncFuncJob, MAX_RETRY, MAX_LIFETIME
 
 
-_TRACE_ID = '_trace'
+_TRACE_ID = 'trace'
 
 
 def _parse_coroutine_job_params(func):
@@ -45,15 +52,21 @@ class AsyncCoroutineFuncContext:
 
 
 class AsyncCoroutineFunc:
-    def __init__(self, func, max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
+    def __init__(self, func: typing.Callable, max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
         self.func = func
         self.max_retry = max_retry
         self.max_lifetime = max_lifetime
 
-    async def __call__(self, job: AsyncFuncJob):
-        return await self.run_job(job)
+        # register async job to current module
+        func_module = inspect.getmodule(func)
+        job_func_name = '#AsyncCoroutineFunc-%s-%05d' % (func.__name__, random.randint(0, 1 << 16))
+        setattr(func_module, job_func_name, self.run_job)
+        self.job_func_import_name = f'{func_module.__name__}.{job_func_name}'
 
-    async def run_job(self, job: AsyncFuncJob):
+    async def __call__(self, *args, **kwargs):
+        return await self.call(*args, **kwargs)
+
+    async def run_job(self, job: AsyncFuncJob, raise_exception=True, with_trace_id=False):
         """ run async function job """
         # get var
         data = job.parse_params()
@@ -66,18 +79,26 @@ class AsyncCoroutineFunc:
         try:
             ret = await self.call(context, *args, **kwargs)
         except Exception as e:
-            raise AsyncJobException({
-                'error': repr(e),
+            ret = {
+                'exception': repr(e),
+                'stack': traceback.format_exc(),
                 _TRACE_ID: log.get_trace_id()
-            })
+            }
+            if raise_exception:
+                raise AsyncJobException(ret)
+            else:
+                return ret
 
-        # return result
-        if not isinstance(ret, dict):
-            ret = repr(ret)
-        ret = {
-            '_ret': ret,
-            _TRACE_ID: log.get_trace_id()
-        }
+        # with trace id
+        if with_trace_id:
+            if isinstance(ret, str):
+                pass
+            elif not isinstance(ret, dict):
+                ret = repr(ret)
+            ret = {
+                'ret': ret,
+                _TRACE_ID: log.get_trace_id()
+            }
         return ret
 
     async def call(self, *args, **kwargs):
@@ -86,6 +107,7 @@ class AsyncCoroutineFunc:
         return ret
 
     async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+        now = utils.get_datetime_now()
         max_retry = max_retry or self.max_retry
         max_lifetime = max_lifetime or self.max_lifetime
 
@@ -93,12 +115,14 @@ class AsyncCoroutineFunc:
             'args': args,
             'kwargs': kwargs,
         }
-        return await s2a(AsyncFuncJob.create)(
-            self.func,
-            params,
+        return await s2a(AsyncFuncJob.objects.create)(
+            func_name=self.job_func_import_name,
+            params=json.dumps(params),
             job_type=AsyncFuncJob.JOB_TYPE_IS_COROUTINE | AsyncFuncJob.JOB_TYPE_HAS_SUB_TASK,
             max_retry=max_retry,
             max_lifetime=max_lifetime,
+            expire_time=now + timedelta(seconds=max_lifetime),
+            mtime=now,
         )
 
 

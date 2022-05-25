@@ -3,6 +3,7 @@ from django.test import TestCase
 from .onebot.apis import OneBotApi, get_response
 from .onebot.settings import OneBotApiConfig
 from .plugins.auto_approve import get_username_by_school_id
+from . import tasks
 
 
 class TestOneBotApi(TestCase):
@@ -23,3 +24,12 @@ class TestOneBotApi(TestCase):
         userid = '160107020099'
         data = async_to_sync(get_username_by_school_id)(userid)
         print(data)
+
+
+class TestCeleryApi(TestCase):
+    def setUp(self) -> None:
+        pass
+
+    def test_celery_add(self):
+        res = tasks.add.delay(2, 2)
+        self.assertEqual(4, res.get())

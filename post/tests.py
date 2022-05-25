@@ -1,11 +1,13 @@
 import ujson as json
 import asyncio as aio
 import threading
+import traceback
 from concurrent import futures
+from asgiref.sync import async_to_sync as a2s
 from datetime import datetime, timedelta
 from django.test import TestCase
 from common import utils
-from common.tests import tell_now, atell_now, raise_exception
+from common.tests import tell_now, atell_now, raise_exception, hello
 from post.models import AsyncFuncJob, get_func_import_name
 
 
@@ -87,6 +89,24 @@ class AsyncFuncTestCase(TestCase):
         print('resp:', resp)
         job = AsyncFuncJob.objects.get(id=job.id)
         self.assertEqual(job.status, job.STATUS_FAIL)
+
+
+class AsyncCoroutineDecoratorTestCase(TestCase):
+    def setUp(self):
+        now = utils.get_datetime_now()
+        self.j1 = a2s(hello.add_job)('cjh', echo='fuck u too').id
+
+    def test_hello(self):
+        job = AsyncFuncJob.objects.get(id=self.j1)
+
+        # call coroutine job
+        coro = job.get_coroutine()
+        resp = a2s(coro)(job)
+        self.assertEqual(resp, 'fuck u too')
+
+        # call original function
+        resp = a2s(hello)(None, 'hd', echo='hi beauty')
+        self.assertEqual('hi beauty', resp)
 
 
 def create_ysu_check_job(user_id, group_id):

@@ -41,7 +41,7 @@ async def run():
                 except ImportError as e:
                     await s2a(job.set_error)(dict(exception=repr(e)))
                 else:
-                    loop.create_task(func(job))
+                    loop.create_task(func(job, with_trace_id=True))
             else:
                 try:
                     func = job.get_function()

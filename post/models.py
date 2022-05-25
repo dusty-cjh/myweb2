@@ -265,7 +265,7 @@ class AsyncFuncJob(models.Model):
 
         # async function decorator
         @wraps(func)
-        async def call(job: AsyncFuncJob, *args, **kwargs):
+        async def call(job: AsyncFuncJob, *args, raise_exception=False, **kwargs):
             # try to lock current func
             if not await s2a(self._lock)():
                 return {
@@ -280,15 +280,15 @@ class AsyncFuncJob(models.Model):
                 result = {
                     'exception': repr(e),
                 }
+                if raise_exception:
+                    raise
                 await s2a(job.set_error)(result, retry=True)
-            except aio.TimeoutError:
-                print('catched timeout error')
             else:
                 if isinstance(result, dict):
                     await s2a(job.set_result)(result)
                 else:
-                    result = dict(data=repr(result))
-                    await s2a(job.set_result)(result)
+                    data = dict(data=repr(result))
+                    await s2a(job.set_result)(data)
 
             return result
 

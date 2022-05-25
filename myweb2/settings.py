@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
     'collect.apps.CollectConfig',
-    'resource.apps.ResourceConfig',
+    # 'resource.apps.ResourceConfig',
     'shop.apps.ShopConfig',
     'mybot.apps.MybotConfig',
 
@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'django_ckeditor_5',
     'django_filters',
+    # 'django_celery_results',
 ]
 SITE_ID = 1
 
@@ -149,11 +150,11 @@ DATABASES = {
         }
     },
     'test': {
-        'backup': {
+        'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
         },
-        'default': {
+        'hdcjh_xyz': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'myweb2_test',
             'USER': 'myweb2_test',
@@ -162,6 +163,15 @@ DATABASES = {
             'PORT': '3306',
             'init_command': "SET foreign_key_checks = 0;",
         },
+        'hd': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'myweb2_test',
+            'USER': 'myweb2_test',
+            'PASSWORD': 's2ffKte5ZT7X4TZj',
+            'HOST': '8.141.144.79',
+            'PORT': '3306',
+            'init_command': "SET foreign_key_checks = 0;",
+        }
     },
 }
 DATABASES = DATABASES[ENV]
@@ -218,7 +228,7 @@ MEDIA_ROOT = {
 }
 MEDIA_ROOT = MEDIA_ROOT[ENV]
 
-RESOURCE_URL  = os.path.join(STATIC_URL, 'resource')
+RESOURCE_URL = os.path.join(STATIC_URL, 'resource')
 RESOURCE_ROOT = os.path.join(STATIC_ROOT, 'resource')
 
 ADMINS = [ ('Jiaohao.chen', 'jiahao.chen@seamoney.com'), ('dusty-cjh', 'dusty-cjh@qq.com'), ]
@@ -370,3 +380,10 @@ LOGGING = {
         },
     },
 }
+
+# Celery Configuration Options
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+# CELERY_RESULT_BACKEND = 'default'
+# CELERY_CACHE_BACKEND = 'default'
