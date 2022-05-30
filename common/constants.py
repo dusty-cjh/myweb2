@@ -16,6 +16,8 @@ class ErrCode(int):
     SERVER_ERROR = _errcode(10)
     INVALID_PARAMETERS = _errcode(11)
     VALIDATION_FAILED = _errcode(12)
+    CALL_3P_ERROR = _errcode(13)
+    CLIENT_CONNECTION_ERROR = _errcode(14)
 
     @classmethod
     def to_errmsg(cls, code):
@@ -33,6 +35,8 @@ ErrMsg = {
     ErrCode.KRPC_SERVER_NOT_START: 'krpc server not start',
     ErrCode.INVALID_PARAMETERS: 'invalid parameters',
     ErrCode.VALIDATION_FAILED: 'validation failed',
+    ErrCode.CALL_3P_ERROR: 'call 3rd part api error',
+    ErrCode.CLIENT_CONNECTION_ERROR: 'client connection error',
 }
 
 PYTHON_INTERPRETER_SHUTDOWN = (

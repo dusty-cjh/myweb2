@@ -165,7 +165,6 @@ class OneBotSender:
     nickname: str
     sex: str
     age: int
-    role: str  # member admin owner
 
 
 class OneBotAnonymous:

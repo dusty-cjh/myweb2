@@ -1,5 +1,22 @@
 ## onebot plugin configuration admin
 
+## async message handling 
+
+1。 
+`lpush` message into Redis list while it's coming.
+
+job instance will create an async future to wait for new message coming, 
+
+event loop will enquiry Redis list every 5 seconds to get fresh data.
+
+2. every server instance will publish new message to rabbitMQ,
+
+job instance will create a temporary listening queue and try to consume new message during session is active, after that, queue will be closed.
+
+2.1 could I get only one message per operation when announced a consumer ?
+
+try to get user message, if not exist, `asleep` for a while and try again
+
 ## background
 
 currently we got no plugin config admin, we need that.

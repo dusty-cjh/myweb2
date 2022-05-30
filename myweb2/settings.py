@@ -150,11 +150,11 @@ DATABASES = {
         }
     },
     'test': {
-        'default': {
+        'sqlite3': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
         },
-        'hdcjh_xyz': {
+        'hdcjh': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'myweb2_test',
             'USER': 'myweb2_test',
@@ -163,7 +163,7 @@ DATABASES = {
             'PORT': '3306',
             'init_command': "SET foreign_key_checks = 0;",
         },
-        'hd': {
+        'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'myweb2_test',
             'USER': 'myweb2_test',
@@ -247,7 +247,7 @@ WECHAT = {
 }
 
 ASYNC_JOB = {
-    'MAX_LIFETIME': 3600 * 2,
+    'MAX_LIFETIME': 600 if DEBUG else 3600 * 2,
     'MAX_RETRY': 3,
 }
 
@@ -380,6 +380,24 @@ LOGGING = {
         },
     },
 }
+
+# rabbit mq
+RABBIT_MQ = {
+    'test': {
+        'url': 'amqp://localhost:5672/',
+        'exchange': [
+            {
+                'name': 'onebot.message.private',
+                'type': 'direct',
+            },
+            {
+                'name': 'onebot.message.group',
+                'type': 'direct',
+            },
+        ],
+    },
+}
+RABBIT_MQ = RABBIT_MQ[ENV]
 
 # Celery Configuration Options
 CELERY_TIMEZONE = TIME_ZONE

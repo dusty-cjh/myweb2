@@ -1,6 +1,5 @@
-import json
 import random
-import ujson
+import ujson as json
 from collections import namedtuple
 from typing import Callable, List, Iterable
 from datetime import datetime, timedelta
@@ -8,8 +7,7 @@ from django.db import models
 from django.http.request import HttpRequest
 from django.db.models import Q, F, Func, Value
 from django.contrib.auth.models import User
-from django.core.cache import cache
-
+from django.conf import settings
 from common.middlewares import LoggingContextAdapter
 from common.utils import serializer
 from common import utils
@@ -27,7 +25,7 @@ def create_event(event: dict) -> OneBotEvent:
 
 def get_event_name(event: OneBotEvent):
     name = event.post_type
-    if event.post_type == constants.EVENT_POST_TYPE_MESSAGE:
+    if event.post_type in (constants.EVENT_POST_TYPE_MESSAGE, constants.EVENT_POST_TYPE_MESSAGE_SENT):
         name = '{}.{}.{}'.format(name, event.message_type, event.sub_type)
     elif event.post_type == constants.EVENT_POST_TYPE_REQUEST:
         name = '{}.{}'.format(name, event.request_type)
@@ -73,6 +71,35 @@ class AbstractOneBotEventHandler:
         pass
 
     async def event_message_group_notice(self, event: OneBotEvent, *args, **kwargs):
+        pass
+
+    # ============ self message event ===============
+
+    async def event_message_sent_private_friend(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_private_friend(event, *args, **kwargs)
+
+    async def event_message_sent_private_group(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_private_group(event, *args, **kwargs)
+        pass
+
+    async def event_message_sent_private_group_self(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_private_group_self(event, *args, **kwargs)
+        pass
+
+    async def event_message_sent_private_other(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_private_other(event, *args, **kwargs)
+        pass
+
+    async def event_message_sent_group_normal(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_group_normal(event, *args, **kwargs)
+        pass
+
+    async def event_message_sent_group_anonymous(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_group_anonymous(event, *args, **kwargs)
+        pass
+
+    async def event_message_sent_group_notice(self, event: OneBotEvent, *args, **kwargs):
+        return await self.event_message_group_notice(event, *args, **kwargs)
         pass
 
     # ============= notice event ===============
@@ -153,34 +180,6 @@ class AbstractOneBotEventHandler:
 
     async def meta_event(self, event: OneBotEvent, *args, **kwargs):
         pass
-
-
-# class SyncPluginConfigWithDB(serializer.SerializerMeta):
-#     def __init__(cls, name, bases, attr_dict):
-#         super().__init__(name, bases, attr_dict)
-#         if name == CLASS_NAME_PLUGIN_CONFIG and AbstractOneBotPluginConfig in bases:
-#             # global var
-#             plugin_name = cls.name
-#             plugin_default_configs = {}
-#             for cfg_name in filter(lambda x: not x.startswith('_'), dir(cls)):
-#                 plugin_default_configs[cfg_name] = getattr(cls, cfg_name)
-#             plugin_default_configs.pop('name')
-#             plugin_default_configs.pop('verbose_name')
-#             plugin_default_configs.pop('short_description')
-#
-#             # sync config with DB
-#             try:
-#                 plugin_db_configs = PluginConfigs.objects.get(name=plugin_name)
-#             except PluginConfigs.DoesNotExist:
-#                 PluginConfigs.objects.create(
-#                     name=plugin_name,
-#                     verbose_name=cls.verbose_name,
-#                     short_description=cls.short_description,
-#                     configs=json.dumps(plugin_default_configs),
-#                 )
-#                 return
-#             # else:
-#             #     plugin_db_configs
 
 
 class AbstractOneBotPluginConfig(serializer.Serializer):
@@ -337,3 +336,84 @@ class PluginConfigs(models.Model):
         setattr(self, '_json_form_data', ret)
         return ret
 
+
+class OneBotEventTab(models.Model):
+    POST_TYPE_MESSAGE = 'message'
+    POST_TYPE_REQUEST = 'request'
+    POST_TYPE_NOTICE = 'notice'
+    POST_TYPE_META_EVENT = 'meta_event'
+    POST_TYPE_MESSAGE_SENT = 'message_sent'
+    POST_TYPE = (
+        (POST_TYPE_MESSAGE, POST_TYPE_MESSAGE,),
+        (POST_TYPE_REQUEST, POST_TYPE_REQUEST,),
+        (POST_TYPE_NOTICE, POST_TYPE_NOTICE,),
+        (POST_TYPE_META_EVENT, POST_TYPE_META_EVENT,),
+        (POST_TYPE_MESSAGE_SENT, POST_TYPE_MESSAGE_SENT),
+    )
+
+    MESSAGE_TYPE_GROUP = 'group'
+    MESSAGE_TYPE_PUBLIC = 'public'
+    MESSAGE_TYPE_PRIVATE = 'private'
+    MESSAGE_TYPE = (
+        (MESSAGE_TYPE_GROUP, MESSAGE_TYPE_GROUP,),
+        (MESSAGE_TYPE_PUBLIC, MESSAGE_TYPE_PUBLIC,),
+        (MESSAGE_TYPE_PRIVATE, MESSAGE_TYPE_PRIVATE,),
+    )
+
+    SUB_TYPE_PRIVATE = 'private'
+    SUB_TYPE_FRIEND = 'friend'
+    SUB_TYPE_GROUP = 'group'
+    SUB_TYPE_OTHER = 'other'
+    SUB_TYPE_ANONYMOUS = 'anonymous'
+    SUB_TYPE_NOTICE = 'notice'
+    SUB_TYPE_NORMAL = 'normal'
+    SUB_TYPE = (
+        (SUB_TYPE_PRIVATE, SUB_TYPE_PRIVATE,),
+        (SUB_TYPE_FRIEND, SUB_TYPE_FRIEND,),
+        (SUB_TYPE_GROUP, SUB_TYPE_GROUP,),
+        (SUB_TYPE_OTHER, SUB_TYPE_OTHER,),
+        (SUB_TYPE_ANONYMOUS, SUB_TYPE_ANONYMOUS,),
+        (SUB_TYPE_NORMAL, SUB_TYPE_NORMAL,),
+        (SUB_TYPE_NOTICE, SUB_TYPE_NOTICE,),
+    )
+
+    time = models.DateTimeField()
+    self_id = models.PositiveIntegerField()
+    post_type = models.CharField(max_length=20, choices=POST_TYPE)
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE)
+    sub_type = models.CharField(max_length=20, default='', choices=SUB_TYPE)
+    message_id = models.IntegerField()
+    user_id = models.PositiveIntegerField()
+    message = models.TextField(null=True)
+    raw_message = models.TextField(null=True)
+    font = models.IntegerField(default=0)
+    sender = models.TextField(null=True)
+    group_id = models.PositiveIntegerField(default=0)
+    anonymous = models.TextField(null=True)
+
+    class Meta:
+        ordering = ['-time', ]
+        verbose_name = verbose_name_plural = 'QQ Message'
+
+    def __str__(self):
+        return 'OneBotEventTab(message_id=%d)' % self.message_id
+
+    @classmethod
+    def save_message(cls, raw_message: dict):
+        params = {}
+        # print('distinct:', set(raw_message.keys()) ^ set([x.name for x in cls._meta.fields]))
+        for field in cls._meta.fields:
+            key = field.name
+            if key not in raw_message:
+                continue
+
+            value = raw_message[key]
+
+            # transform data format
+            if isinstance(field, models.DateTimeField):
+                value = datetime.fromtimestamp(value, tz=settings.PY_TIME_ZONE)
+            elif isinstance(value, dict):
+                value = json.dumps(value)
+            params[field.name] = value
+
+        return cls.objects.create(**params)

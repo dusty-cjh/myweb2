@@ -2,6 +2,8 @@ import json, bencodepy, struct
 import abc
 import time
 from datetime import datetime
+from collections.abc import MutableSequence
+from functools import wraps
 
 import pytz
 
@@ -194,3 +196,93 @@ class Serializer(metaclass=SerializerMeta):
             if field_name in data:
                 obj[key] = data[field_name]
         return cls(**obj)
+
+
+class FrozenJson(dict):
+    # base field
+    errcode: int
+    errmsg: str
+
+    # wechat common field
+    url: str
+    media_id: str
+    appid: str
+    nonce_str: str
+    sign: str
+    mch_id: str
+
+    # wechat pay
+    return_code: str    # 'SUCCESS',
+    return_msg: str
+    result_code: str
+    total_fee: int
+    cash_fee: int
+    cash_refund_fee: int
+    refund_fee: int
+
+    def __init__(self, arg=None, name='FrozenJson', ):
+        if arg is None:
+            arg = dict()
+        for key, val in arg.items():
+            arg[key] = self._wrap_element(val)
+
+        super().__init__(arg)
+        self.__name = name
+
+    def __missing__(self, key):
+        return None
+
+    def __getattr__(self, item):
+        return super().__getitem__(item)
+
+    def __setattr__(self, key, value):
+        return super().__setattr__(key, self._wrap_element(value))
+
+    def __repr__(self):
+        return '{}({})'.format(self.__name, ', '.join(['{}={}'.format(key, val) for key, val in self.items()]))
+
+    @classmethod
+    def _wrap_element(cls, obj):
+        if obj.__class__ == dict:
+            return cls(obj)
+        elif isinstance(obj, MutableSequence):
+            for i, val in enumerate(obj):
+                obj[i] = cls._wrap_element(val)
+            return obj
+        else:
+            return obj
+
+
+def dict_to_namedtuple(name='dict_to_namedtuple'):
+    def decorator(func):
+        @wraps(func)
+        def inner(*args, **kwargs):
+            resp = {}
+            try:
+                resp = func(*args, **kwargs)
+                resp['errcode'] = 0
+                resp['errmsg'] = 'success'
+            except Exception as e:
+                resp['errcode'] = getattr(e, 'errcode', -1)
+                resp['errmsg'] = repr(e)
+            return FrozenJson(resp, name)
+        return inner
+    return decorator
+
+
+def async_dict_to_namedtuple(name='dict_to_namedtuple', cls=FrozenJson):
+    def decorator(func):
+        @wraps(func)
+        async def inner(*args, **kwargs) -> cls:
+            resp = {}
+            try:
+                resp = await func(*args, **kwargs)
+                resp['errcode'] = 0
+                resp['errmsg'] = 'success'
+            except Exception as e:
+                resp['errcode'] = getattr(e, 'errcode', -1)
+                resp['errmsg'] = repr(e)
+            return cls(resp, name)
+        return inner
+    return decorator
+

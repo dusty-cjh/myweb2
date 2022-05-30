@@ -86,7 +86,7 @@ class AsyncFuncJobAdmin(admin.ModelAdmin):
     act_copy.short_description = 'copy rows'
 
     def act_to_pending(self, request, queryset):
-        affected = queryset.update(status=AsyncFuncJob.STATUS_PENDING)
+        affected = queryset.update(status=AsyncFuncJob.STATUS_PENDING, retries=0)
         self.message_user(request, _(f'{affected}/{len(queryset)} has to pending'))
     act_to_pending.short_description = 'To pending'
 

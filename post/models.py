@@ -232,7 +232,7 @@ class AsyncFuncJob(models.Model):
 
         # async function decorator
         @wraps(func)
-        def call(job: AsyncFuncJob, *args, **kwargs):
+        def call(job: AsyncFuncJob, *args, raise_exception=settings.DEBUG, **kwargs):
             # try to lock current func
             if not self._lock():
                 return {
@@ -249,6 +249,8 @@ class AsyncFuncJob(models.Model):
                     'stack_info': traceback.format_exc(),
                 }
                 job.set_error(result, retry=True)
+                if raise_exception:
+                    raise
             else:
                 if isinstance(result, dict):
                     job.set_result(result)
@@ -265,7 +267,7 @@ class AsyncFuncJob(models.Model):
 
         # async function decorator
         @wraps(func)
-        async def call(job: AsyncFuncJob, *args, raise_exception=False, **kwargs):
+        async def call(job: AsyncFuncJob, *args, raise_exception=settings.DEBUG, **kwargs):
             # try to lock current func
             if not await s2a(self._lock)():
                 return {
@@ -280,9 +282,9 @@ class AsyncFuncJob(models.Model):
                 result = {
                     'exception': repr(e),
                 }
+                await s2a(job.set_error)(result, retry=True)
                 if raise_exception:
                     raise
-                await s2a(job.set_error)(result, retry=True)
             else:
                 if isinstance(result, dict):
                     await s2a(job.set_result)(result)

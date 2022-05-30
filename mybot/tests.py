@@ -16,8 +16,8 @@ class TestOneBotApi(TestCase):
             'message': '嘤嘤嘤',
         }
         data = async_to_sync(OneBotApi.send_private_msg)(**params)
-        OneBotApi.delete_msg()
-        print(data)
+        # async_to_sync(OneBotApi.delete_msg)()
+        print(data.retcode)
         pass
 
     def test_get_username_by_id(self):

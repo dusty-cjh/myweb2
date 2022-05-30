@@ -191,3 +191,8 @@ async def create_async_task(func, params, max_retry=MAX_RETRY, max_lifetime=MAX_
         max_retry=max_retry,
     )
     return job
+
+
+async def get_private_message_from_rabbit_mq(user_id: int, timeout=300) -> (OneBotEvent, Exception):
+    pass
+

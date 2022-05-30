@@ -1,8 +1,10 @@
 import ujson
 import aiohttp
 
+from common.utils import serializer
 from . import helper, serializers
 from .settings import OneBotApiConfig, ONE_BOT
+from .serializers import OneBotApiResponse
 
 
 def get_session():
@@ -18,6 +20,7 @@ def get_session():
     return session
 
 
+# @serializer.async_dict_to_namedtuple('one_bot.get_response', cls=OneBotApiResponse)
 async def get_response(url: str, session: aiohttp.ClientSession = None, **kwargs):
     # get params
     if session is None:

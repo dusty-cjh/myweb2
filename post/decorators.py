@@ -59,7 +59,7 @@ class AsyncCoroutineFunc:
 
         # register async job to current module
         func_module = inspect.getmodule(func)
-        job_func_name = '#AsyncCoroutineFunc-%s-%05d' % (func.__name__, random.randint(0, 1 << 16))
+        job_func_name = '#AsyncCoroutineFunc-%s' % func.__name__
         setattr(func_module, job_func_name, self.run_job)
         self.job_func_import_name = f'{func_module.__name__}.{job_func_name}'
 
@@ -106,7 +106,7 @@ class AsyncCoroutineFunc:
         ret = await self.func(*args, **kwargs)
         return ret
 
-    async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+    def get_job_creating_params(self, *args, max_retry=None, max_lifetime=None, **kwargs):
         now = utils.get_datetime_now()
         max_retry = max_retry or self.max_retry
         max_lifetime = max_lifetime or self.max_lifetime
@@ -115,7 +115,7 @@ class AsyncCoroutineFunc:
             'args': args,
             'kwargs': kwargs,
         }
-        return await s2a(AsyncFuncJob.objects.create)(
+        ret = dict(
             func_name=self.job_func_import_name,
             params=json.dumps(params),
             job_type=AsyncFuncJob.JOB_TYPE_IS_COROUTINE | AsyncFuncJob.JOB_TYPE_HAS_SUB_TASK,
@@ -124,6 +124,11 @@ class AsyncCoroutineFunc:
             expire_time=now + timedelta(seconds=max_lifetime),
             mtime=now,
         )
+        return ret
+
+    async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+        params = self.get_job_creating_params(*args, max_retry=max_retry, max_lifetime=max_lifetime, **kwargs)
+        return await s2a(AsyncFuncJob.objects.create)(**params)
 
 
 def async_coroutine(max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
@@ -132,25 +137,72 @@ def async_coroutine(max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
     return decorator
 
 
-class AsyncFunc:
-    def __init__(self, func):
-        self.func = func
+class AsyncFuncContext:
+    def __init__(self, job: AsyncFuncJob, log: Logger):
+        self.job = job
+        self.log = log
 
+    def update_kwargs(self, **update_fields):
+        job = self.job
+        data = job.parse_params()
+        data.setdefault('kwargs', {}).update(update_fields)
+        job.set_params(data)
+        return job.safe_update(params=job.params)
+
+
+class AsyncFunc(AsyncCoroutineFunc):
     def __call__(self, *args, **kwargs):
-        return self.func(*args, **kwargs)
+        return self.call(*args, **kwargs)
 
-    def add_job(self, params: dict, max_retry=3, max_lifetime=3000):
-        return AsyncFuncJob.create(
-            self.func,
-            params,
-            job_type=AsyncFuncJob.JOB_TYPE_IS_COROUTINE | AsyncFuncJob.JOB_TYPE_HAS_SUB_TASK,
-            max_retry=max_retry,
-            max_lifetime=max_lifetime,
-        )
+    def call(self, *args, **kwargs):
+        """ call wrapped function """
+        ret = self.func(*args, **kwargs)
+        return ret
+
+    def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+        params = self.get_job_creating_params(*args, max_retry=max_retry, max_lifetime=max_lifetime, **kwargs)
+        return AsyncFuncJob.objects.create(**params)
+
+    def run_job(self, job: AsyncFuncJob, raise_exception=True, with_trace_id=False):
+        """ run async function job """
+        # get var
+        data = job.parse_params()
+        result = job.parse_result() or {}
+        args, kwargs = data.get('args', tuple()), data.get('kwargs', dict())
+        log = get_async_job_logger(trace_id=result.get(_TRACE_ID))
+        context = AsyncFuncContext(job, log)
+
+        # run job
+        try:
+            ret = self.call(context, *args, **kwargs)
+        except Exception as e:
+            ret = {
+                'exception': repr(e),
+                'stack': traceback.format_exc(),
+                _TRACE_ID: log.get_trace_id()
+            }
+            if raise_exception:
+                raise AsyncJobException(ret)
+            else:
+                return ret
+
+        # with trace id
+        if with_trace_id:
+            if isinstance(ret, str):
+                pass
+            elif not isinstance(ret, dict):
+                ret = repr(ret)
+            ret = {
+                'ret': ret,
+                _TRACE_ID: log.get_trace_id()
+            }
+        return ret
 
 
-def async_function(func):
-    return AsyncFunc(func)
+def async_function(max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
+    def decorator(func):
+        return AsyncFunc(func, max_retry=max_retry, max_lifetime=max_lifetime)
+    return decorator
 
 
 def get_async_job_logger(trace_id=None):

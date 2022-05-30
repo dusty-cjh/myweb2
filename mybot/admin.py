@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.db import models
 from django import forms
 from django.utils.translation import gettext as _
-from .models import UserProfile, PluginConfigs
+from .models import UserProfile, PluginConfigs, OneBotEventTab
 
 
 @admin.register(UserProfile)
@@ -80,3 +80,10 @@ class PluginConfigsAdmin(admin.ModelAdmin):
             if cfg_name not in fields_set:
                 fields.append(cfg_name)
         return fields
+
+
+@admin.register(OneBotEventTab)
+class OneBotEventTabAdmin(admin.ModelAdmin):
+    list_display = 'message_id post_type message_type sub_type group_id user_id anonymous time'.split()
+
+

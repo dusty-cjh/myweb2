@@ -26,6 +26,7 @@ def get_errmsg_from_status(status: int) -> str:
 
 
 EVENT_POST_TYPE_MESSAGE = 'message'
+EVENT_POST_TYPE_MESSAGE_SENT = 'message_sent'
 EVENT_POST_TYPE_NOTICE = 'notice'
 EVENT_POST_TYPE_REQUEST = 'request'
 EVENT_POST_TYPE_OTHER = 'other'

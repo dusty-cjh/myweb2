@@ -1,4 +1,5 @@
 import re
+from bridge.onebot import CQCodeConfig, CQCode, AsyncOneBotApi
 from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin, AbstractOneBotPluginConfig, serializer
 from mybot.models import OneBotEvent
 from mybot.onebot_apis import OneBotApi
@@ -19,6 +20,30 @@ class PluginConfig(AbstractOneBotPluginConfig):
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
+
+    async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
+        if event.sender['role'] in ['admin', 'owner']:
+            # process kick
+            if event.raw_message.startswith('kick'):
+                ret = await self.process_group_kick(event)
+                if ret:
+                    return ret
+
+        return await super().event_message_group_normal(event, *args, **kwargs)
+
+    async def process_group_kick(self, event: OneBotEvent):
+        api = AsyncOneBotApi()
+        success_count = 0
+        cq_code_list = CQCode.parse_cq_code_list(event.raw_message)
+        for code in filter(lambda code: code.type == 'at', cq_code_list):
+            resp, err = await api.set_group_kick(event.group_id, code.data['qq'])
+            if err:
+                self.log.error('process group kick failed: errcode={}, resp={}', err, resp)
+            else:
+                success_count += 1
+        resp, err = await api.send_group_msg('success kicked %d member' % success_count, event.group_id)
+        if err:
+            self.log.error('process group kick send group msg failed: errcode={}, resp={}', err, resp)
 
     async def cmd_kick(self, event: OneBotEvent, *args, **kwargs):
         # check params

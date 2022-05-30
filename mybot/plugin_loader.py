@@ -1,16 +1,13 @@
-import json
 import os
 import sys
 import ujson
 import importlib
-import inspect
-from functools import wraps
-from typing import Optional, List, Dict, Mapping, Iterable, ByteString
+from asgiref.sync import sync_to_async as s2a
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 from django.conf import settings
-from common import utils
-from .models import OneBotEvent, create_event, AbstractOneBotEventHandler, AbstractOneBotPluginConfig, PluginConfigs
+from django.db import utils
+from .models import create_event, AbstractOneBotEventHandler, AbstractOneBotPluginConfig, OneBotEventTab
 from . import event_loop
 
 
@@ -112,7 +109,15 @@ import_plugins()
 
 async def dispatch(request: HttpRequest):
     event_loop.get_event_loop()
-    event = create_event(ujson.loads(request.body))
+    raw_event = ujson.loads(request.body)
+    event = create_event(raw_event)
+
+    # save message to DB
+    if event.post_type in ['message', 'message_sent']:
+        try:
+            await s2a(OneBotEventTab.save_message)(raw_event)
+        except utils.OperationalError as e:
+            request.log.error('save message to DB failed, err={}, msg={}', e, event)
 
     # handle by task
     if resp := event_loop.process_message(request, event) is not None:
