@@ -1,14 +1,9 @@
-import time
-import pika
 from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 import asyncio as aio
 from bridge.onebot import AsyncOneBotApi
-from common.infra.rabbitmq import init
 from common import utils
 import queue
-from pika.adapters.asyncio_connection import AsyncioConnection
-from .event_loop import get_event_loop
 from .models import OneBotEventTab
 
 
@@ -25,14 +20,21 @@ class OneBotPrivateMessageSession:
 
     async def get_message(self, timeout=600):
         if not self.message_pool.empty():
-            return self.message_pool.get_nowait()
+            try:
+                return self.message_pool.get_nowait()
+            except queue.Empty:
+                return None
 
         timeout_stamp = utils.get_datetime_now() + timedelta(seconds=timeout)
         while (cur := utils.get_datetime_now()) < timeout_stamp:
             # fresh data from DB
-            queryset = OneBotEventTab.objects.filter(user_id=self.user_id, time__gt=self.cursor_time)
-            if self.group_id is not None:
-                queryset = queryset.filter(group_id=self.group_id)
+            queryset = OneBotEventTab.objects.filter(
+                post_type=OneBotEventTab.POST_TYPE_MESSAGE,
+                user_id=self.user_id,
+                time__gt=self.cursor_time,
+            )
+            # if self.group_id is not None:
+            #     queryset = queryset.filter(group_id=self.group_id)
 
             # sleep for a while if DB got no data
             size = await s2a(lambda: len(queryset))()

@@ -9,3 +9,13 @@ pyyaml
 markdown
 ujson
 aiohttp
+celery
+django-rest_framework
+django-filter
+mysqlclient
+wechatpy
+bencodepy
+redis
+hiredis
+django-redis
+

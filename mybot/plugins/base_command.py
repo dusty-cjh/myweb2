@@ -1,8 +1,7 @@
 import re
-from bridge.onebot import CQCodeConfig, CQCode, AsyncOneBotApi
-from mybot.models import AbstractOneBotEventHandler, OneBotCmdMixin, AbstractOneBotPluginConfig, serializer
+from bridge.onebot import CQCodeConfig, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin
+from mybot.models import AbstractOneBotPluginConfig, serializer
 from mybot.models import OneBotEvent
-from mybot.onebot_apis import OneBotApi
 
 
 MSG_SUCCESS_KICK = '已踢'
@@ -14,7 +13,6 @@ PLUGIN_NAME = '基本命令'
 
 
 class PluginConfig(AbstractOneBotPluginConfig):
-    name = serializer.CharField(default='base_command')
     verbose_name = serializer.CharField(default='基础命令')
     cmd_prefix = serializer.CharField(default='/')
 
@@ -24,7 +22,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
     async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
         if event.sender['role'] in ['admin', 'owner']:
             # process kick
-            if event.raw_message.startswith('kick'):
+            if event.raw_message.startswith('kick') or event.raw_message.endswith('kick'):
                 ret = await self.process_group_kick(event)
                 if ret:
                     return ret
@@ -56,7 +54,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
         # get info
         group_id = int(args[2]) if len(args) >= 2 else self._get_group_id(event)
         sender_id = event.user_id
-        resp = await OneBotApi.get_group_member_info_with_cache(group_id, sender_id)
+        resp = await AsyncOneBotApi().get_group_member_info_with_cache(group_id, sender_id)
         if resp.get('retcode') != 0:
             self.log.error('base_command.cmd_kick|get_group_member_info_with_cache failed|response={}', repr(resp))
             return {
@@ -70,7 +68,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
             return {}
 
         # kick user
-        resp = await OneBotApi.set_group_kick(
+        resp = await AsyncOneBotApi().set_group_kick(
             group_id=group_id,
             user_id=user_id,
         )

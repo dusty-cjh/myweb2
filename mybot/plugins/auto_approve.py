@@ -1,26 +1,24 @@
 import re
 import sys
-import logging
 import asyncio as aio
+import typing
+
 import xmltodict as xml
 from datetime import datetime
-from django.http.request import HttpRequest
-from django.conf import settings
 from asgiref.sync import async_to_sync as a2s, sync_to_async as s2a
+from django.conf import settings
 
 from common.logger import Logger
 from common.constants import ErrCode, ErrMsg
 from common import utils
-from post.models import AsyncFuncJob, create_async_coroutine_job
+from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, MessageType, SubType, CQCode, CQCodeConfig
 from post.decorators import get_async_job_logger, async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
-    AbstractOneBotEventHandler, OneBotCmdMixin, OneBotEvent, UserProfile as Profile, AbstractOneBotPluginConfig,
-    serializer,
+    OneBotEvent, UserProfile as Profile, AbstractOneBotPluginConfig, serializer,
 )
-from mybot.onebot.serializers import RequestGroupResponse, RequestGroupRequest, RequestFriendResponse
+from mybot.manager import OneBotPrivateMessageSession
 from mybot.onebot.apis import get_session
-from mybot.event_loop import get_private_message, call
-from mybot.onebot_apis import OneBotApi
+from bridge.onebot import AsyncOneBotApi
 from mybot import event_loop
 
 logger = Logger('mybot')
@@ -71,7 +69,7 @@ class PluginConfig(AbstractOneBotPluginConfig):
     verbose_name = serializer.CharField(default='自动通过')
 
 
-plugin_config = PluginConfig.get_latest()
+plugin_config = PluginConfig()
 
 
 def msg_err_verify_hint(id, name):
@@ -79,10 +77,23 @@ def msg_err_verify_hint(id, name):
 
 
 class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
+    async def should_check(self, event: OneBotEvent, *args, **kwargs):
+        # refresh plugin config
+        global plugin_config
+        plugin_config = PluginConfig.get_latest()
+
+        if event.post_type == PostType.MESSAGE:
+            if event.group_id and event.group_id not in plugin_config.YSU_GROUP:
+                return False
+
+        return True
 
     async def event_request_friend(self, event, *args, **kwargs):
         logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
-        event_loop.call(OneBotApi.send_private_msg(user_id=event.user_id, message=plugin_config.MSG_NOTICE_WELCOME))
+        event_loop.call(AsyncOneBotApi().send_private_msg(
+            user_id=event.user_id,
+            message=plugin_config.MSG_NOTICE_WELCOME,
+        ))
         resp = {
             'approve': True,
             'remark': datetime.now().strftime('%y/%m/%d %H:%M'),
@@ -96,25 +107,25 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
             if s and s.group():
                 profile, err = await create_user_profile(event.comment, event.user_id, s.group())
                 if err:
-                    return RequestGroupResponse({
+                    return {
                         'approve': False,
                         'reason': msg_err_verify_hint(s.group(), profile),
-                    })
+                    }
 
         logger.info('{} approve {} to join group {}: {}', event.self_id, event.user_id, event.group_id, event.comment)
-        resp = RequestGroupResponse({
+        resp = {
             'approve': True,
             'reason': '',
-        })
+        }
         return resp
 
     async def event_request_group_invite(self, event, *args, **kwargs):
         self.log.data('{} agree {}\'s invitation of join group {}', event.self_id, event.user_id, event.group_id)
         logger.info('{} agree {}\'s invitation of join group {}', event.self_id, event.user_id, event.group_id)
-        resp = RequestGroupResponse({
+        resp = {
             'approve': True,
             'reason': '',
-        })
+        }
         return resp
 
     async def event_notice_group_increase_approve(self, event, *args, **kwargs):
@@ -154,6 +165,24 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
             'reply': plugin_config.MSG_RESPONSD_GONNA_PROCESS.format(group_id=group_id, user_id=user_id)
         }
 
+    async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
+        group_info, _ = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
+        m = re.search(r'^\s*(?:ysu_check|ysucheck|yck|ycheck|)\s*\[CQ:at,(.*?)\]\s*', event.message)
+        li = CQCode.parse_cq_code_list(event.message)
+        if m and len(li):
+            code = li[0]
+            if code.type != 'at':
+                return
+            qq = int(code.data['qq'])
+            resp, err = await ysu_check.add_job(qq, event.group_id)
+            if err:
+                msg = 'add ysu_check job for user-{} in {} failed, err={}, resp={}'.format(
+                    qq, event.group_id, err, resp)
+                self.log.error(msg)
+            else:
+                noti = 'gonna do ysu_check for {} in {}'.format(qq, group_info.group_name)
+                await self.api.send_private_msg(noti, user_id=qq, group_id=event.group_id)
+
 
 def mask_username(name):
     return '*' * (len(name) - 1) + name[-1]
@@ -191,23 +220,24 @@ async def get_username_by_school_id(school_id: str):
             return id_to_name.get(school_id)
 
 
-async def get_school_id(user_id: int, group_id):
+async def get_school_id(session: OneBotPrivateMessageSession, user_id: int):
+    api = AsyncOneBotApi()
     while True:
         # get user input
-        resp, err = await get_private_message(user_id=user_id, timeout=plugin_config.MAX_LIFETIME)
-        if err:
-            return None, None, err
+        resp = await session.get_message(timeout=plugin_config.MAX_LIFETIME)
+        if not resp:
+            return None, None, TimeoutError('get_school_id timeout')
 
         # search ysu id
         message = resp.message
         s = re.search(plugin_config.CONFIG_REGEXP_YSU_ID, message)
         if not s or not s.group():
-            await OneBotApi.send_private_msg(user_id=user_id, message=plugin_config.MSG_ERR_INPUT_CONTAINS_NO_ID)
+            await api.send_private_msg(user_id=user_id, message=plugin_config.MSG_ERR_INPUT_CONTAINS_NO_ID)
         else:
             return s.group(), message, None
 
 
-async def create_user_profile(message: str, qq_number: int, college_student_number: str, college='YSU') -> tuple[Profile, int]:
+async def create_user_profile(message: str, qq_number: int, college_student_number: str, college='YSU') -> typing.Tuple[Profile, int]:
     err = ErrCode.SUCCESS
     username = await get_username_by_school_id(college_student_number)
     profile = dict(
@@ -233,6 +263,8 @@ async def create_user_profile(message: str, qq_number: int, college_student_numb
 async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int, *args, ysu_info=None, has_noti=False, **kwargs):
     global plugin_config
     plugin_config = await s2a(PluginConfig.get_latest)()
+    session = OneBotPrivateMessageSession(user_id=user_id, group_id=group_id)
+    api = AsyncOneBotApi().with_max_retry(1)
 
     if not user_id or not group_id:
         raise ValueError('user_id and group_id must be provided')
@@ -245,42 +277,63 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
 
     if ysu_info:
         log.info('ysu_id and name not match')
-        await OneBotApi.send_private_msg(
+        resp, err = await api.send_private_msg(
             user_id=user_id, group_id=group_id,
             message=msg_err_verify_hint(*ysu_info))
+        if err:
+            log.warning('send private msg failed on ysu_info hint, err={}, resp={}', err, resp)
     else:
         # send noti
         if not has_noti:
-            await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_WELCOME)
+            resp, err = await api.send_private_msg(
+                user_id=user_id,
+                group_id=group_id,
+                message=plugin_config.MSG_NOTICE_WELCOME)
+            if err:
+                log.warning('send private msg failed on welcome, err={}, resp={}', err, resp)
             await aio.sleep(3)
-            resp = await OneBotApi.get_group_info(group_id=group_id)
-            if resp['retcode'] != 0:
-                log.info('[ysu_check] get_group_info of %d failed' % group_id, file=sys.stderr)
+            resp, err = await api.with_cache(plugin_config.MAX_LIFETIME).get_group_info(group_id=group_id)
+            if err:
+                log.warning('[ysu_check] get_group_info of %d failed, error={}' % group_id, err)
                 return
 
             log.info('remind user to input ysu id and user name')
-            group_info = resp['data']
-            for msg in plugin_config.MSG_NOTICE_GUIDE.format(group_name=group_info['group_name']).split('\n\n'):
-                await OneBotApi.send_private_msg(
+            for msg in plugin_config.MSG_NOTICE_GUIDE.format(group_name=resp['group_name']).split('\n\n'):
+                resp, err = await api.send_private_msg(
                     user_id=user_id,
                     group_id=group_id,
                     message=msg,
                 )
+            if err:
+                log.warning('[ysu_check] send guide notification failed, error={}, resp={}', err, resp)
             await ctx.update_kwargs(has_noti=True)
         else:
-            await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_PUSH)
+            resp, err = await api.send_private_msg(
+                user_id=user_id,
+                group_id=group_id,
+                message=plugin_config.MSG_NOTICE_PUSH)
+            if err:
+                log.warning('[ysu_check] send urge notification failed, error={}, resp={}', err, resp)
+
             log.info('user has been notified')
 
     # get user info
     log.info('waiting for user to input correct ysu id')
-    school_id, message, err = await get_school_id(user_id, group_id)
+    school_id, message, err = await get_school_id(session, user_id)
     if err:
         if ctx.job.max_retry <= ctx.job.retries:
             log.info('has reach max retry limitation')
-            await OneBotApi.send_private_msg(
+            resp, err = await api.send_private_msg(
                 user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_GONNA_KICK_OUT)
+            if err:
+                log.warning('[ysu_check] send kick out notification failed, error={}, resp={}', err, resp)
             await aio.sleep(3)
-            await OneBotApi.set_group_kick(user_id=user_id, group_id=group_id, reject_add_request=False)
+            resp, err = await api.with_max_retry(3).set_group_kick(
+                user_id=user_id,
+                group_id=group_id,
+                reject_add_request=False)
+            if err:
+                log.error('[ysu check] action kick out failed, err={}, resp={}', err, resp)
             ret['status'] = 'fail'
             ret['reason'] = 'user has reach max retry'
         log.info('get correct ysu id failed, error={}', repr(err))
@@ -290,30 +343,44 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
     profile, err = await create_user_profile(message, user_id, school_id)
     if err:
         log.info('ysu_id and name not match')
-        await OneBotApi.send_private_msg(
+        resp, err = await api.send_private_msg(
             user_id=user_id, group_id=group_id,
             message=msg_err_verify_hint(school_id, profile))
-        await OneBotApi.send_private_msg(
+        if err:
+            log.warning('[ysu check] send verify hint failed, err={}, resp={}', err, resp)
+        resp, err = await api.send_private_msg(
             user_id=user_id, group_id=group_id,
             message='❤️请重新加裙验证{}'.format(group_id)
         )
-        await OneBotApi.set_group_kick(user_id=user_id, group_id=group_id, reject_add_request=False)
+        if err:
+            log.warning('[ysu check] send rejoin notification failed, err={}, resp={}', err, resp)
+        resp, err = await api.with_max_retry(3).set_group_kick(
+            user_id=user_id, group_id=group_id, reject_add_request=False)
+        if err:
+            log.error('[ysu check] kick out user failed, err={}, resp={}', err, resp)
         ret['err'] = 'ysu id and name not match'
     else:
         # has reach max retry limitation
         if not profile.certificate:
             if ctx.job.max_retry == ctx.job.retries:
                 log.info('has reach max retry limitation')
-                await OneBotApi.send_private_msg(
+                resp, err = await api.send_private_msg(
                     user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_GONNA_KICK_OUT)
+                if err:
+                    log.warning('[ysu check] gonna kick out notification failed send, err={}, resp={}', err, resp)
                 await aio.sleep(3)
-                await OneBotApi.set_group_kick(user_id=user_id, group_id=group_id, reject_add_request=False)
+                resp, err = await api.with_max_retry(3).set_group_kick(
+                    user_id=user_id, group_id=group_id, reject_add_request=False)
+                if err:
+                    log.error('[ysu check] 3rd kick out user failed, err={}, resp={}', err, resp)
                 ret['status'] = 'fail'
                 ret['reason'] = 'user has reach max retry'
                 return ret
             else:
-                await OneBotApi.send_private_msg(
+                resp, err = await api.send_private_msg(
                     user_id=user_id, group_id=group_id, message=plugin_config.MSG_NOTICE_CHECK_LATER)
+                if err:
+                    log.warning('[ysu check] check later notification failed send, err={}, resp={}', err, resp)
                 ret['status'] = 'fail'
                 ret['reason'] = 'ysu id format right, but user info not found'
                 return ret
@@ -321,7 +388,9 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
             ret['status'] = 'verify success'
             log.info(f'ysu_check success, send success notice to user-{user_id}')
             for msg in plugin_config.MSG_NOTICE_SUCCESS.split('\n\n'):
-                await OneBotApi.send_private_msg(user_id=user_id, group_id=group_id, message=msg)
+                resp, err = await api.send_private_msg(user_id=user_id, group_id=group_id, message=msg)
+                if err:
+                    log.warning('[ysu check] send success notification failed, err={}, resp={}', err, resp)
 
     log.info('[ysu_check] end')
     if settings.DEBUG:

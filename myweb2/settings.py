@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
     'collect.apps.CollectConfig',
-    # 'resource.apps.ResourceConfig',
+    # 'resource2.apps.ResourceConfig',
     'shop.apps.ShopConfig',
     'mybot.apps.MybotConfig',
 
@@ -139,7 +139,7 @@ DOMAIN = 'hdcjh.xyz'
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 DATABASES = {
     'live': {
-        'default': {
+        'hdcjh': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'myweb2',
             'USER': 'cjh',
@@ -147,7 +147,16 @@ DATABASES = {
             'HOST': '127.0.0.1',
             'PORT': '3306',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
+        },
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'myweb2_live',
+            'USER': 'myweb2_live',
+            'PASSWORD': 'p7jKfeSwpHEGrDT2',
+            'HOST': '127.0.0.1',
+            'PORT': '3306',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        },
     },
     'test': {
         'sqlite3': {
@@ -395,6 +404,9 @@ RABBIT_MQ = {
                 'type': 'direct',
             },
         ],
+    },
+    'live': {
+
     },
 }
 RABBIT_MQ = RABBIT_MQ[ENV]

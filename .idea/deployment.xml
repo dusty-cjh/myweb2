@@ -1,8 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" serverName="root@hdcjh.xyz:22" confirmBeforeUploading="false">
+  <component name="PublishConfigData" serverName="cjh@8.141.144.79:22" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
+      <paths name="cjh@8.141.144.79:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/cjh/myweb2" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="hdcjh.xyz">
         <serverdata>
           <mappings>
@@ -11,6 +18,5 @@
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

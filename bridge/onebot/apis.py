@@ -13,17 +13,9 @@ from .settings import ONE_BOT
 
 
 class AsyncOneBotApi:
-    # api hint
-    send_msg: typing.Callable
-    delete_msg: typing.Callable
-    get_msg: typing.Callable
-    set_group_ban: typing.Callable
-    set_group_anonymous_ban: typing.Callable
-    get_group_info: typing.Callable
-    get_group_list: typing.Callable
 
     class Options:
-        max_retry: int = ONE_BOT.get('max_retry')
+        max_retry: int = ONE_BOT.get('max_retry', 1)
         fixed_values: dict = None
         timeout: float = ONE_BOT['timeout']
         host: str = ONE_BOT['host']
@@ -131,6 +123,7 @@ class AsyncOneBotApi:
         return self.__class__(opts)
 
     def with_max_retry(self, max_retry: int):
+        assert max_retry > 0
         opts = self.options.copy()
         opts.max_retry = max_retry
         return self.__class__(opts)
@@ -355,6 +348,7 @@ class CQCode:
         if name:
             data['name'] = name
         return cls._render('at', **data)
+    at.pattern = re.compile(r'\[CQ:at,(.*?)\]')
 
     @classmethod
     def at_all(cls):

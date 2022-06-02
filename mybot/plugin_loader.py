@@ -7,7 +7,8 @@ from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 from django.conf import settings
 from django.db import utils
-from .models import create_event, AbstractOneBotEventHandler, AbstractOneBotPluginConfig, OneBotEventTab
+from bridge.onebot import create_event, AbstractOneBotEventHandler
+from .models import AbstractOneBotPluginConfig, OneBotEventTab
 from . import event_loop
 
 
@@ -69,7 +70,8 @@ def import_plugins():
         if not issubclass(cfg, AbstractOneBotPluginConfig):
             raise ImportError(
                 'handler %s.PluginConfig must be subclass of AbstractOneBotPluginConfig' % plugin_module_name)
-        cfg = cfg.get_latest()
+        # cfg = cfg.get_latest()
+        cfg = cfg()
         if cfg.name is None:
             raise ValueError('%s.PluginConfig.name not be assigned' % plugin_module_name)
         if cfg.verbose_name is None:
@@ -77,28 +79,6 @@ def import_plugins():
 
         # register plugin
         PLUGIN_MODULES[cfg.name] = plugin_module
-
-        # # makesure plugin config has exist
-        # config_items = {}
-        # for k in dir(plugin_module.PluginConfig):
-        #     if not k.startswith('_'):
-        #         v = getattr(plugin_module.PluginConfig, k, None)
-        #         config_items[k] = v
-        # kwargs = dict(
-        #     name=config_items.pop('name'),
-        #     verbose_name=config_items.pop('verbose_name'),
-        # )
-        # try:
-        #     plugin_config = PluginConfigs.objects.get(name=plugin_module.PluginConfig.name)
-        # except PluginConfigs.DoesNotExist:
-        #     kwargs['configs'] = json.dumps(config_items) or '{}',
-        #     PluginConfigs.objects.create(**kwargs)
-        # else:
-        #     config_items.update(json.loads(plugin_config.configs))
-        #     configs = json.dumps(config_items)
-        #     if configs != plugin_config.configs:
-        #         plugin_config.configs = configs
-        #         plugin_config.save()
 
         if settings.DEBUG:
             print('[plugin_loader]\t', '\t - '.join([cfg.name, cfg.verbose_name, cfg.short_description]), file=sys.stderr)

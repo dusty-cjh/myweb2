@@ -72,7 +72,7 @@ class AsyncCoroutineFunc:
         data = job.parse_params()
         result = job.parse_result() or {}
         args, kwargs = data.get('args', tuple()), data.get('kwargs', dict())
-        log = get_async_job_logger(trace_id=result.get(_TRACE_ID))
+        log = get_async_job_logger(trace_id=result.get(_TRACE_ID) or f'async_job.{job.id}.{job.retries}')
         context = AsyncCoroutineFuncContext(job, log)
 
         # run job

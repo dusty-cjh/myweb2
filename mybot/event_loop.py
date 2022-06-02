@@ -6,11 +6,11 @@ from asgiref.sync import sync_to_async as s2a
 
 from django.http.request import HttpRequest
 from django.conf import settings
+from bridge.onebot import OneBotEvent
+from bridge.onebot import constants
 from common import utils, constants as common_constants
 from post.models import AsyncFuncJob, MAX_RETRY, MAX_LIFETIME
 from post.decorators import get_async_job_logger
-from .models import OneBotEvent
-from . import settings as constants
 
 
 async def run():
@@ -145,18 +145,6 @@ def _get_session_key_of_private_message(user_id: int):
     return 'message.private.{}'.format(user_id)
 
 
-async def get_private_message(user_id: int, timeout=300) -> (OneBotEvent, Exception):
-    loop = get_event_loop()
-    fut = loop.create_future()
-    MESSAGE_POOL['message']['private'][user_id] = fut
-    try:
-        msg = await aio.wait_for(fut, timeout, loop=loop)
-    except aio.TimeoutError as err:
-        return None, err
-    else:
-        return msg, None
-
-
 def process_message(request: HttpRequest, event: OneBotEvent):
     # check
     if event.post_type != constants.EVENT_POST_TYPE_MESSAGE:
@@ -191,8 +179,3 @@ async def create_async_task(func, params, max_retry=MAX_RETRY, max_lifetime=MAX_
         max_retry=max_retry,
     )
     return job
-
-
-async def get_private_message_from_rabbit_mq(user_id: int, timeout=300) -> (OneBotEvent, Exception):
-    pass
-
