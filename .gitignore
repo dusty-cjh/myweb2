@@ -5,3 +5,8 @@ media/
 dump.rdb
 shop/goods/imgs/
 tests/
+**/__pycache__
+**/.pytest_cache
+**/log
+**/logs
+deploy/go-cqhttp/data
