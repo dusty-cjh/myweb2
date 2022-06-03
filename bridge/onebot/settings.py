@@ -68,3 +68,13 @@ class SubType:
     ANONYMOUS = 'anonymous'
     NOTICE = 'notice'
 
+
+class Role:
+    OWNER = 'owner'
+    ADMIN = 'admin'
+    MEMBER = 'member'
+
+    @classmethod
+    def is_manager(cls, role):
+        return role in (cls.ADMIN, cls.OWNER)
+

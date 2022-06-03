@@ -1,7 +1,7 @@
 import re
 from asgiref.sync import sync_to_async as s2a
 from django.db.utils import OperationalError
-from bridge.onebot import OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin
+from bridge.onebot import OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin, Role
 from mybot.models import OneBotEventTab
 
 
@@ -38,7 +38,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
         return await super().event_message_private(event, *args, **kwargs)
 
     async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
-        if event.sender['role'] in ['admin', 'owner']:
+        if Role.is_manager(event.sender['role']):
             # process kick
             if event.raw_message.startswith('kick') or event.raw_message.endswith('kick'):
                 ret = await self.process_group_kick(event)
@@ -52,7 +52,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
         success_count = 0
         cq_code_list = CQCode.parse_cq_code_list(event.raw_message)
         for code in filter(lambda code: code.type == 'at', cq_code_list):
-            resp, err = await api.set_group_kick(event.group_id, code.data['qq'])
+            resp, err = await api.with_max_retry(3).set_group_kick(event.group_id, code.data['qq'])
             if err:
                 self.log.error('process group kick failed: errcode={}, resp={}', err, resp)
             else:

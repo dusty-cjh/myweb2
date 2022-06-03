@@ -12,7 +12,7 @@ from common.logger import Logger
 from common.constants import ErrCode
 from common import utils
 from common.utils import serializer
-from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, CQCode
+from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, CQCode, Role
 from post.decorators import async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
     UserProfile as Profile, AbstractOneBotPluginConfig,
@@ -81,11 +81,11 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
     cfg: PluginConfig
 
     async def should_check(self, event, *args, **kwargs):
-        # if event.post_type == PostType.MESSAGE:
-        #     if event.group_id and event.group_id not in self.cfg.YSU_GROUP:
-        #         return False
-
-        return True
+        info, err = await self.api.with_cache(3600).get_group_member_info(event.group_id, event.self_id)
+        if err:
+            self.log.error('should_check.get_group_member_info failed, err={}, resp={}', err, info)
+            return False
+        return info['role'] in (Role.OWNER, Role.ADMIN)
 
     async def event_request_friend(self, event, *args, **kwargs):
         logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
