@@ -29,7 +29,7 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 class PluginConfig(AbstractOneBotPluginConfig):
     YSU_GROUP = [1143835437, 645125440, 1127243020]
-    MAX_LIFETIME = serializer.IntField(verbose_name='config - task max lifetime', default=60 if settings.DEBUG else 1800)
+    MAX_LIFETIME = serializer.IntField(verbose_name='config - message max waiting time', default=60 if settings.DEBUG else 1800)
     # JUMP_HINT = {'研究生', '里仁'}
 
     MSG_NOTICE_WELCOME = """注意！
@@ -81,9 +81,9 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
     cfg: PluginConfig
 
     async def should_check(self, event, *args, **kwargs):
-        if event.post_type == PostType.MESSAGE:
-            if event.group_id and event.group_id not in self.cfg.YSU_GROUP:
-                return False
+        # if event.post_type == PostType.MESSAGE:
+        #     if event.group_id and event.group_id not in self.cfg.YSU_GROUP:
+        #         return False
 
         return True
 
@@ -173,14 +173,9 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
             if code.type != 'at':
                 return
             qq = int(code.data['qq'])
-            resp, err = await ysu_check.add_job(qq, event.group_id)
-            if err:
-                msg = 'add ysu_check job for user-{} in {} failed, err={}, resp={}'.format(
-                    qq, event.group_id, err, resp)
-                self.log.error(msg)
-            else:
-                noti = 'gonna do ysu_check for {} in {}'.format(qq, group_info.group_name)
-                await self.api.send_private_msg(noti, user_id=qq, group_id=event.group_id)
+            await ysu_check.add_job(qq, event.group_id)
+            noti = 'gonna do ysu_check for {} in {}'.format(event.user_id, group_info['group_name'])
+            await self.api.send_private_msg(noti, user_id=qq, group_id=event.group_id)
 
 
 def mask_username(name):
@@ -219,19 +214,19 @@ async def get_username_by_school_id(school_id: str):
             return id_to_name.get(school_id)
 
 
-async def get_school_id(session: OneBotPrivateMessageSession, user_id: int):
+async def get_school_id(session: OneBotPrivateMessageSession, cfg: PluginConfig, user_id: int):
     api = AsyncOneBotApi()
     while True:
         # get user input
-        resp = await session.get_message(timeout=plugin_config.MAX_LIFETIME)
+        resp = await session.get_message(timeout=cfg.MAX_LIFETIME)
         if not resp:
             return None, None, TimeoutError('get_school_id timeout')
 
         # search ysu id
         message = resp.message
-        s = re.search(plugin_config.CONFIG_REGEXP_YSU_ID, message)
+        s = re.search(cfg.CONFIG_REGEXP_YSU_ID, message)
         if not s or not s.group():
-            await api.send_private_msg(user_id=user_id, message=plugin_config.MSG_ERR_INPUT_CONTAINS_NO_ID)
+            await api.send_private_msg(user_id=user_id, message=cfg.MSG_ERR_INPUT_CONTAINS_NO_ID)
         else:
             return s.group(), message, None
 
@@ -258,7 +253,7 @@ async def create_user_profile(message: str, qq_number: int, college_student_numb
     return profile, err
 
 
-@async_coroutine(max_lifetime=3600*12)
+@async_coroutine(max_lifetime=360*25)
 async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int, *args, ysu_info=None, has_noti=False, **kwargs):
     global plugin_config
     plugin_config = await s2a(PluginConfig.get_latest)()
@@ -318,7 +313,7 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
 
     # get user info
     log.info('waiting for user to input correct ysu id')
-    school_id, message, err = await get_school_id(session, user_id)
+    school_id, message, err = await get_school_id(session, plugin_config, user_id)
     if err:
         if ctx.job.max_retry <= ctx.job.retries:
             log.info('has reach max retry limitation')
