@@ -1,7 +1,8 @@
 import re
-from bridge.onebot import CQCodeConfig, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin
-from mybot.models import AbstractOneBotPluginConfig, serializer
-from mybot.models import OneBotEvent
+from asgiref.sync import sync_to_async as s2a
+from django.db.utils import OperationalError
+from bridge.onebot import OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin
+from mybot.models import OneBotEventTab
 
 
 MSG_SUCCESS_KICK = '已踢'
@@ -12,12 +13,29 @@ MSG_ERR_INTERNAL_SERVER_ERROR = '处理出错！请重试'
 PLUGIN_NAME = '基本命令'
 
 
-class PluginConfig(AbstractOneBotPluginConfig):
-    verbose_name = serializer.CharField(default='基础命令')
-    cmd_prefix = serializer.CharField(default='/')
-
-
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
+    async def event_message_group(self, event: OneBotEvent, *args, **kwargs):
+        # save message of groups matching patterns to DB
+
+        pass
+
+    async def event_message_private(self, event: OneBotEvent, *args, **kwargs):
+        # save all private message to DB
+        try:
+            await s2a(OneBotEventTab.save_message)(event)
+        except OperationalError as e:
+            self.log.error('save message to DB failed, err={}, msg={}', e, event)
+
+        return await super().event_message_private(event, *args, **kwargs)
+
+    async def event_message_sent(self, event: OneBotEvent, *args, **kwargs):
+        # save all self sent message to DB
+        try:
+            await s2a(OneBotEventTab.save_message)(event)
+        except OperationalError as e:
+            self.log.error('save message to DB failed, err={}, msg={}', e, event)
+
+        return await super().event_message_private(event, *args, **kwargs)
 
     async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
         if event.sender['role'] in ['admin', 'owner']:

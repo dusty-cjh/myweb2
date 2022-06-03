@@ -2,11 +2,9 @@ import os
 import sys
 import ujson
 import importlib
-from asgiref.sync import sync_to_async as s2a
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 from django.conf import settings
-from django.db import utils
 from bridge.onebot import create_event, AbstractOneBotEventHandler
 from .models import AbstractOneBotPluginConfig, OneBotEventTab
 from . import event_loop
@@ -66,21 +64,24 @@ def import_plugins():
         if not issubclass(h, AbstractOneBotEventHandler):
             raise ImportError(
                 'handler %s.OneBotEventHandler must be subclass of AbstractOneBotEventHandler' % plugin_module_name)
-        cfg = getattr(plugin_module, 'PluginConfig', None)
-        if not cfg:
+        cfg_class = getattr(plugin_module, 'PluginConfig', None)
+        if not cfg_class:
             raise ImportError('plugin %s has no PluginConfig class' % plugin_module_name)
-        if not issubclass(cfg, AbstractOneBotPluginConfig):
+        if not issubclass(cfg_class, AbstractOneBotPluginConfig):
             raise ImportError(
                 'handler %s.PluginConfig must be subclass of AbstractOneBotPluginConfig' % plugin_module_name)
-        # cfg = cfg.get_latest()
-        cfg = cfg()
+        # cfg = cfg_class.get_latest()
+        cfg = cfg_class()
         if cfg.name is None:
             raise ValueError('%s.PluginConfig.name not be assigned' % plugin_module_name)
         if cfg.verbose_name is None:
             cfg.verbose_name = cfg.name.replace('_', ' ').replace('-', ' ')
 
+        # auto-inject plugin class to handler
+        h.cfg_class = cfg_class
+
         # register plugin
-        PLUGIN_MODULES[cfg.name] = plugin_module
+        PLUGIN_MODULES[p] = plugin_module
 
         if settings.DEBUG:
             print('[plugin_loader]\t', '\t - '.join([cfg.name, cfg.verbose_name, cfg.short_description]), file=sys.stderr)
@@ -93,13 +94,6 @@ async def dispatch(request: HttpRequest):
     event_loop.get_event_loop()
     raw_event = ujson.loads(request.body)
     event = create_event(raw_event)
-
-    # save message to DB
-    if event.post_type in ['message', 'message_sent']:
-        try:
-            await s2a(OneBotEventTab.save_message)(raw_event)
-        except utils.OperationalError as e:
-            request.log.error('save message to DB failed, err={}, msg={}', e, event)
 
     # handle by task
     if resp := event_loop.process_message(request, event) is not None:

@@ -5,16 +5,17 @@ import typing
 
 import xmltodict as xml
 from datetime import datetime
-from asgiref.sync import async_to_sync as a2s, sync_to_async as s2a
+from asgiref.sync import sync_to_async as s2a
 from django.conf import settings
 
 from common.logger import Logger
-from common.constants import ErrCode, ErrMsg
+from common.constants import ErrCode
 from common import utils
-from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, MessageType, SubType, CQCode, CQCodeConfig
-from post.decorators import get_async_job_logger, async_coroutine, AsyncCoroutineFuncContext
+from common.utils import serializer
+from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, CQCode
+from post.decorators import async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
-    OneBotEvent, UserProfile as Profile, AbstractOneBotPluginConfig, serializer,
+    UserProfile as Profile, AbstractOneBotPluginConfig,
 )
 from mybot.manager import OneBotPrivateMessageSession
 from mybot.onebot.apis import get_session
@@ -77,13 +78,11 @@ def msg_err_verify_hint(id, name):
 
 
 class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
-    async def should_check(self, event: OneBotEvent, *args, **kwargs):
-        # refresh plugin config
-        global plugin_config
-        plugin_config = PluginConfig.get_latest()
+    cfg: PluginConfig
 
+    async def should_check(self, event, *args, **kwargs):
         if event.post_type == PostType.MESSAGE:
-            if event.group_id and event.group_id not in plugin_config.YSU_GROUP:
+            if event.group_id and event.group_id not in self.cfg.YSU_GROUP:
                 return False
 
         return True
@@ -144,7 +143,7 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
         job = await ysu_check.add_job(event.user_id, event.group_id)
         self.log.info('added ysu check job: ', job)
 
-    async def cmd_ysu_check(self, e: OneBotEvent, *args, **kwargs):
+    async def cmd_ysu_check(self, e, *args, **kwargs):
         # parse params
         user_id = e.user_id
         if len(args) >= 2:
@@ -165,7 +164,7 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
             'reply': plugin_config.MSG_RESPONSD_GONNA_PROCESS.format(group_id=group_id, user_id=user_id)
         }
 
-    async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
+    async def event_message_group_normal(self, event, *args, **kwargs):
         group_info, _ = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
         m = re.search(r'^\s*(?:ysu_check|ysucheck|yck|ycheck|)\s*\[CQ:at,(.*?)\]\s*', event.message)
         li = CQCode.parse_cq_code_list(event.message)

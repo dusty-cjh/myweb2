@@ -1,75 +1,11 @@
-import random
 import ujson as json
-from collections import namedtuple
-from typing import Callable, List, Iterable
 from datetime import datetime, timedelta
 from django.db import models
-from django.http.request import HttpRequest
 from django.db.models import Q, F, Func, Value
 from django.contrib.auth.models import User
 from django.conf import settings
-from bridge.onebot import OneBotEvent, constants
-from common.middlewares import LoggingContextAdapter
-from common.utils import serializer
-from common import utils
-
-CLASS_NAME_PLUGIN_CONFIG = 'PluginConfig'
-
-
-class AbstractOneBotPluginConfig(serializer.Serializer):
-    name = serializer.CharField(default='')
-    verbose_name = serializer.CharField(default='')
-    short_description = serializer.CharField(default='')
-    readonly_fields = 'name verbose_name'.split()
-
-    @classmethod
-    def _get_module_name(cls):
-        return cls.__module__.split('.')[-1]
-
-    @classmethod
-    def _serialize_default_config(cls):
-        plugin_default_config = {}
-        for field_name in cls._fields:
-            field = getattr(cls, field_name)
-            plugin_default_config[field_name] = field.default_value
-        if not plugin_default_config['name']:
-            plugin_default_config['name'] = cls._get_module_name()
-        if not plugin_default_config['verbose_name']:
-            plugin_default_config['verbose_name'] = plugin_default_config['name']
-        return plugin_default_config
-
-    @classmethod
-    def get_default(cls):
-        plugin_default_config = cls._serialize_default_config()
-        return cls(**plugin_default_config)
-
-    @classmethod
-    def get_latest(cls):
-        plugin_default_config = cls._serialize_default_config()
-        try:
-            obj = PluginConfigs.objects.get(name=cls._get_module_name())
-        except PluginConfigs.DoesNotExist:
-            # write default config to DB if it not exists
-            kwargs = {}
-            for field_name in cls.readonly_fields:
-                kwargs[field_name] = plugin_default_config.pop(field_name)
-            kwargs['configs'] = json.dumps(plugin_default_config)
-            PluginConfigs.objects.create(**kwargs)
-            return cls.get_default()
-        else:
-            # read and then flush in DB plugin config
-            plugin_db_config = json.loads(obj.configs)
-            utils.update_json_obj(plugin_default_config, plugin_db_config)
-            return cls(**plugin_default_config)
-
-    @classmethod
-    def from_db_config(cls, obj):
-        plugin_configs = utils.update_json_obj(cls._serialize_default_config(), json.loads(obj.configs))
-        return cls(**plugin_configs)
-
-    @classmethod
-    def json_form_fields(cls):
-        return cls._fields ^ set(cls.readonly_fields)
+from bridge.onebot import AbstractOneBotPluginConfig as BridgeAbstractOneBotPluginConfig
+from bridge.onebot import AbstractPluginConfigs
 
 
 class UserProfile(models.Model):
@@ -116,32 +52,12 @@ class UserProfile(models.Model):
             return int(f'20{self.college_student_number[:2]}')
 
 
-class PluginConfigs(models.Model):
-    name = models.CharField(max_length=32, unique=True, verbose_name='name')
-    verbose_name = models.CharField(max_length=32)
-    configs = models.TextField()
-    ctime = models.DateTimeField(auto_now_add=True)
-
+class PluginConfigs(AbstractPluginConfigs):
     class Meta:
         verbose_name = verbose_name_plural = 'PluginConfigs'
-        ordering = ['-ctime', 'name', 'verbose_name']
 
     def __str__(self):
         return f'PluginConfigs(name={self.name})'
-
-    @property
-    def json_form_data(self):
-        json_form_data = getattr(self, '_json_form_data', {})
-        if json_form_data:
-            return json_form_data
-
-        # parse json form data
-        if not self.configs:
-            self.configs = '{}'
-        else:
-            ret = json.loads(self.configs)
-        setattr(self, '_json_form_data', ret)
-        return ret
 
 
 class OneBotEventTab(models.Model):
@@ -224,3 +140,7 @@ class OneBotEventTab(models.Model):
             params[field.name] = value
 
         return cls.objects.create(**params)
+
+
+class AbstractOneBotPluginConfig(BridgeAbstractOneBotPluginConfig):
+    plugin_config_model = PluginConfigs
