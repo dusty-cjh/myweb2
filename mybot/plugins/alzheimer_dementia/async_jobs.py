@@ -1,17 +1,5 @@
-from asgiref.sync import async_to_sync as a2s
-from bridge.onebot import AsyncOneBotApi, OneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin, create_event
 from post.decorators import async_coroutine, AsyncFuncContext
-from mybot.models import AbstractOneBotPluginConfig, serializer
 from mybot.manager import OneBotPrivateMessageSession
-
-
-class PluginConfig(AbstractOneBotPluginConfig):
-    verbose_name = serializer.CharField(default='阿尔兹海默症')
-    cmd_prefix = serializer.CharField(default='/')
-
-
-class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
-    pass
 
 
 @async_coroutine()

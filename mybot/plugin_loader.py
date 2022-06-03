@@ -48,10 +48,12 @@ def register_event_handler(plugin):
 
 
 def import_plugins():
-    plugin_list = os.listdir(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plugins'))
+    plugin_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plugins')
+    plugin_list = [x for x in os.listdir(plugin_dir) if not x.startswith('_')]
 
     # import file plugin
-    plugins = [x[:-3] for x in plugin_list if x.endswith('.py') and not x.startswith('_')]
+    plugins = [x[:-3] for x in plugin_list if x.endswith('.py')]
+    plugins.extend([x for x in plugin_list if os.path.isdir(os.path.join(plugin_dir, x))])
     for p in plugins:
         # import modules
         plugin_module_name = 'mybot.plugins.%s' % p
