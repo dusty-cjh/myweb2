@@ -177,7 +177,7 @@ DATABASES = {
             'NAME': 'myweb2_test',
             'USER': 'myweb2_test',
             'PASSWORD': 's2ffKte5ZT7X4TZj',
-            'HOST': '8.141.144.79',
+            'HOST': 'crash.hdcjh.xyz',
             'PORT': '3306',
             'init_command': "SET foreign_key_checks = 0;",
         }

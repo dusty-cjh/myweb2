@@ -70,9 +70,9 @@ class AsyncCoroutineFunc:
         """ run async function job """
         # get var
         data = job.parse_params()
-        result = job.parse_result() or {}
         args, kwargs = data.get('args', tuple()), data.get('kwargs', dict())
-        log = get_async_job_logger(trace_id=result.get(_TRACE_ID) or f'async_job.{job.id}.{job.retries}')
+        trace_id = f'async_job.{job.id}.{job.retries}'
+        log = get_async_job_logger(trace_id=trace_id)
         context = AsyncCoroutineFuncContext(job, log)
 
         # run job
@@ -82,7 +82,7 @@ class AsyncCoroutineFunc:
             ret = {
                 'exception': repr(e),
                 'stack': traceback.format_exc(),
-                _TRACE_ID: log.get_trace_id()
+                _TRACE_ID: trace_id
             }
             if raise_exception:
                 raise AsyncJobException(ret)
@@ -97,7 +97,7 @@ class AsyncCoroutineFunc:
                 ret = repr(ret)
             ret = {
                 'ret': ret,
-                _TRACE_ID: log.get_trace_id()
+                _TRACE_ID: trace_id
             }
         return ret
 
@@ -167,9 +167,9 @@ class AsyncFunc(AsyncCoroutineFunc):
         """ run async function job """
         # get var
         data = job.parse_params()
-        result = job.parse_result() or {}
         args, kwargs = data.get('args', tuple()), data.get('kwargs', dict())
-        log = get_async_job_logger(trace_id=result.get(_TRACE_ID))
+        trace_id = f'async_job.{job.id}.{job.retries}'
+        log = get_async_job_logger(trace_id=trace_id)
         context = AsyncFuncContext(job, log)
 
         # run job
@@ -179,7 +179,7 @@ class AsyncFunc(AsyncCoroutineFunc):
             ret = {
                 'exception': repr(e),
                 'stack': traceback.format_exc(),
-                _TRACE_ID: log.get_trace_id()
+                _TRACE_ID: trace_id
             }
             if raise_exception:
                 raise AsyncJobException(ret)
@@ -194,7 +194,7 @@ class AsyncFunc(AsyncCoroutineFunc):
                 ret = repr(ret)
             ret = {
                 'ret': ret,
-                _TRACE_ID: log.get_trace_id()
+                _TRACE_ID: trace_id
             }
         return ret
 

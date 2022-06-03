@@ -336,8 +336,10 @@ async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int,
                 log.error('[ysu check] action kick out failed, err={}, resp={}', err, resp)
             ret['status'] = 'fail'
             ret['reason'] = 'user has reach max retry'
-        log.info('get correct ysu id failed, error={}', repr(err))
-        raise err
+            return ret
+        else:
+            log.info('get correct ysu id failed, error={}', repr(err))
+            raise err
 
     log.info('get ysu student info from jwc.ysu.edu.cn, user-input: {}', message)
     profile, err = await create_user_profile(message, user_id, school_id)
