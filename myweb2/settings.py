@@ -417,7 +417,17 @@ RABBIT_MQ = {
         ],
     },
     'live': {
-
+        'url': 'amqp://localhost:5672/',
+        'exchange': [
+            {
+                'name': 'onebot.message.private',
+                'type': 'direct',
+            },
+            {
+                'name': 'onebot.message.group',
+                'type': 'direct',
+            },
+        ],
     },
 }
 RABBIT_MQ = RABBIT_MQ[ENV]

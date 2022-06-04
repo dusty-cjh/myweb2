@@ -109,7 +109,7 @@ class AbstractOneBotEventHandler:
         _cfg_cache_key = f'_cfg_cache_key.{self.cfg_class.__module__}'
 
         key = await cache.aget(_cfg_cache_key)
-        if not key:
+        if not key or not getattr(cls, 'cfg', None):
             cls.cfg = await s2a(self.cfg_class.get_latest)()
             await cache.aset(_cfg_cache_key, 1, 60 + random.randint(0, 30))
 
@@ -249,6 +249,11 @@ class AbstractOneBotEventHandler:
     async def event_notice_group_admin_unset(self, event: OneBotEvent, *args, **kwargs):
         pass
 
+    async def event_notice_group_decrease(self, event: OneBotEvent, *args, **kwargs):
+        h = getattr(self, 'event_notice_group_decrease_' + event.sub_type, None)
+        if h:
+            return await h(event, *args, **kwargs)
+
     async def event_notice_group_decrease_leave(self, event: OneBotEvent, *args, **kwargs):
         pass
 
@@ -257,6 +262,11 @@ class AbstractOneBotEventHandler:
 
     async def event_notice_group_decrease_kick_me(self, event: OneBotEvent, *args, **kwargs):
         pass
+
+    async def event_notice_group_increase(self, event: OneBotEvent, *args, **kwargs):
+        h = getattr(self, 'event_notice_group_increase_' + event.sub_type, None)
+        if h:
+            return await h(event, *args, **kwargs)
 
     async def event_notice_group_increase_approve(self, event: OneBotEvent, *args, **kwargs):
         pass

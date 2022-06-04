@@ -142,7 +142,7 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
             return
 
         job = await ysu_check.add_job(event.user_id, event.group_id)
-        self.log.info('added ysu check job: ', job)
+        self.log.info('added ysu check job: uid={}, grp={}', event.user_id, event.group_id)
 
     async def cmd_ysu_check(self, e, *args, **kwargs):
         # parse params
