@@ -13,6 +13,7 @@ from common.constants import ErrCode
 from common import utils
 from common.utils import serializer
 from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, CQCode, Role
+from bridge.onebot import permissions
 from post.decorators import async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
     UserProfile as Profile, AbstractOneBotPluginConfig,
@@ -28,7 +29,7 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 
 class PluginConfig(AbstractOneBotPluginConfig):
-    YSU_GROUP = [1143835437, 645125440, 1127243020]
+    YSU_GROUP = [1143835437, 645125440, 1127243020, 1079508725]
     MAX_LIFETIME = serializer.IntField(verbose_name='config - message max waiting time', default=60 if settings.DEBUG else 1800)
     # JUMP_HINT = {'研究生', '里仁'}
 
@@ -78,8 +79,9 @@ def msg_err_verify_hint(id, name):
     return plugin_config.MSG_ERR_VERIFY_HINT.format(id, '*' * (len(name) - 1) + name[-1])
 
 
-class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
+class OneBotEventHandler(AbstractOneBotEventHandler):
     cfg: PluginConfig
+    permission_list = [permissions.message_from_manager]
 
     async def should_check(self, event, *args, **kwargs):
         info, err = await self.api.with_cache(3600).get_group_member_info(event.group_id, event.self_id)
@@ -144,30 +146,9 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
         job = await ysu_check.add_job(event.user_id, event.group_id)
         self.log.info('added ysu check job: uid={}, grp={}', event.user_id, event.group_id)
 
-    async def cmd_ysu_check(self, e, *args, **kwargs):
-        # parse params
-        user_id = e.user_id
-        if len(args) >= 2:
-            user_id = args[1]
-            group_id = args[2]
-        else:
-            group_id = self._get_group_id(e)
-
-        # validate
-        if not group_id:
-            return {
-                'reply': ErrCode.INVALID_PARAMETERS.to_errmsg()
-            }
-
-        # add job
-        await ysu_check.add_job(int(user_id), int(group_id))
-        return {
-            'reply': plugin_config.MSG_RESPONSD_GONNA_PROCESS.format(group_id=group_id, user_id=user_id)
-        }
-
     async def event_message_group_normal(self, event, *args, **kwargs):
         group_info, _ = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
-        m = re.search(r'^\s*(?:ysu_check|ysucheck|yck|ycheck|)\s*\[CQ:at,(.*?)\]\s*', event.message)
+        m = re.search(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*\[CQ:at,(.*?)\]\s*', event.message)
         li = CQCode.parse_cq_code_list(event.message)
         if m and len(li):
             code = li[0]
