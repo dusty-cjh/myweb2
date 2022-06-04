@@ -14,11 +14,6 @@ PLUGIN_NAME = '基本命令'
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
-    async def event_message_group(self, event: OneBotEvent, *args, **kwargs):
-        # save message of groups matching patterns to DB
-
-        pass
-
     async def event_message_private(self, event: OneBotEvent, *args, **kwargs):
         # save all private message to DB
         try:
@@ -35,11 +30,12 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
         except OperationalError as e:
             self.log.error('save message to DB failed, err={}, msg={}', e, event)
 
-        return await super().event_message_private(event, *args, **kwargs)
+        return await super().event_message(event, *args, **kwargs)
 
     async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
-        if Role.is_manager(event.sender['role']):
+        if Role.is_manager(event.sender.role):
             # process kick
+            self.log.info('start kick process')
             if event.raw_message.startswith('kick') or event.raw_message.endswith('kick'):
                 ret = await self.process_group_kick(event)
                 if ret:

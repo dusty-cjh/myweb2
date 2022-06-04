@@ -30,13 +30,25 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
                 t *= 3600
             elif unit.startswith('d'):
                 t *= 3600 * 24
+        self.log.info('alzheimer dementia got args: {} for group {}', m.groups(), event.group_id)
+
+        group_info, err = await self.api.with_max_retry(3).get_group_info(event.group_id)
+        if err:
+            self.log.warning('get group info failed, err={}, resp={}', err, group_info)
 
         # schedule periodic job
         # await recall_message.add_job(event.user_id, event.group_id, t)
         key = self.get_alzheimer_cache_key(event, *args, **kwargs)
         val = t
         await cache.aset(key, val)
-        await self.api.send_private_msg(self.cfg.NOTI_RUNNING.format(group_id=event.group_id), event.user_id, event.group_id)
+        await self.api.send_private_msg(
+            self.cfg.NOTI_RUNNING.format(
+                group_id='{}({})'.format(group_info.get('group_name'), event.group_id),
+                interval=t,
+            ),
+            event.user_id,
+            event.group_id,
+        )
 
     async def event_message_sent_group_normal(self, event, *args, **kwargs):
         return await self.event_message_group_normal(event, *args, **kwargs)
