@@ -10,6 +10,8 @@ markdown
 ujson
 aiohttp
 celery
+django-celery-results
+django-celery-beat
 django-rest_framework
 django-filter
 mysqlclient

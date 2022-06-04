@@ -1,7 +1,6 @@
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import async_to_sync
 from django.test import TestCase
-from .onebot.apis import OneBotApi, get_response
-from .onebot.settings import OneBotApiConfig
+from .onebot.apis import OneBotApi
 from .plugins.auto_approve import get_username_by_school_id
 from . import tasks
 

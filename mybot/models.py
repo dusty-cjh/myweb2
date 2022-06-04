@@ -9,17 +9,23 @@ from bridge.onebot import AbstractPluginConfigs
 
 
 class UserProfile(models.Model):
+    CERT_NONE = 0
     CERT_COLLEGE_ID = 1
     CERT_ADMIN = 1 << 1
+    CERTIFICATE_CATEGORY = (
+        (CERT_NONE, 'none'),
+        (CERT_COLLEGE_ID, 'ysu id'),
+        (CERT_ADMIN, 'admin manu verified'),
+    )
 
     # user = models.OneToOneField('auth.User', on_delete=models.CASCADE, verbose_name='user')
     name = models.CharField(max_length=64, verbose_name='name')
     qq_number = models.PositiveIntegerField(verbose_name='qq')
     college = models.CharField(max_length=20, verbose_name='college name', default='YSU')
-    grade = models.CharField(max_length=20, verbose_name='grade', default='')
+    grade = models.CharField(max_length=20, verbose_name='grade', default='', blank=True)
     college_student_number = models.CharField(max_length=20, verbose_name='college student number')
     ctime = models.DateTimeField(auto_now_add=True)
-    certificate = models.PositiveSmallIntegerField(verbose_name='cert', default=0)
+    certificate = models.PositiveSmallIntegerField(verbose_name='cert', choices=CERTIFICATE_CATEGORY, default=CERT_NONE)
 
     class Meta:
         verbose_name = verbose_name_plural = 'UserProfile'
@@ -144,3 +150,49 @@ class OneBotEventTab(models.Model):
 
 class AbstractOneBotPluginConfig(BridgeAbstractOneBotPluginConfig):
     plugin_config_model = PluginConfigs
+
+
+class OneBotEventDBRouter:
+    """
+    A router to control all database operations on models in the
+    auth and contenttypes applications.
+    """
+    route_app_labels = {'mybot', }
+    _db_for_read = _db_for_write = 'onebot'
+
+    def db_for_read(self, model, **hints):
+        """
+        Attempts to read auth and contenttypes models go to auth_db.
+        """
+        if model._meta.app_label in self.route_app_labels and type(model) == type(PluginConfigs):
+            return self._db_for_read
+        return None
+
+    def db_for_write(self, model, **hints):
+        """
+        Attempts to write auth and contenttypes models go to auth_db.
+        """
+        if model._meta.app_label in self.route_app_labels:
+            return self._db_for_write
+        return None
+
+    def allow_relation(self, obj1, obj2, **hints):
+        """
+        Allow relations if a model in the auth or contenttypes apps is
+        involved.
+        """
+        if (
+                obj1._meta.app_label in self.route_app_labels or
+                obj2._meta.app_label in self.route_app_labels
+        ):
+            return True
+        return None
+
+    def allow_migrate(self, db, app_label, model_name=None, **hints):
+        """
+        Make sure the auth and contenttypes apps only appear in the
+        'auth_db' database.
+        """
+        if app_label in self.route_app_labels:
+            return db in (self._db_for_read, self._db_for_write)
+        return None

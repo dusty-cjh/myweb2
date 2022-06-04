@@ -20,3 +20,8 @@ Stop using: `ad stop` or `ad 0`
 
 
 # tech design
+
+* dependence 
+  * redis
+
+

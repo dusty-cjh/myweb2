@@ -121,6 +121,9 @@ def get_event_loop() -> aio.AbstractEventLoop:
             except Exception:
                 pass
 
+        if _EVENT_LOOP.is_running():
+            _EVENT_LOOP.stop()
+
         _EVENT_LOOP_THREAD = Thread(target=main, args=(_EVENT_LOOP,), name='mybot.event_loop', daemon=True)
         _EVENT_LOOP_THREAD.start()
 

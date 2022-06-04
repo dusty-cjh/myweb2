@@ -53,7 +53,8 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'django_ckeditor_5',
     'django_filters',
-    # 'django_celery_results',
+    'django_celery_results',
+    'django_celery_beat',
 ]
 SITE_ID = 1
 
@@ -157,6 +158,10 @@ DATABASES = {
             'PORT': '3306',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
+        'onebot': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
+        },
     },
     'test': {
         'sqlite3': {
@@ -180,10 +185,16 @@ DATABASES = {
             'HOST': 'crash.hdcjh.xyz',
             'PORT': '3306',
             'init_command': "SET foreign_key_checks = 0;",
-        }
+        },
+        'onebot': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
+        },
     },
 }
 DATABASES = DATABASES[ENV]
+
+DATABASE_ROUTERS = ['mybot.models.OneBotEventDBRouter', ]
 
 CACHES = {
     'test': {
@@ -414,6 +425,7 @@ RABBIT_MQ = RABBIT_MQ[ENV]
 # Celery Configuration Options
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60
-# CELERY_RESULT_BACKEND = 'default'
-# CELERY_CACHE_BACKEND = 'default'
+CELERY_TASK_TIME_LIMIT = 3600
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'default'

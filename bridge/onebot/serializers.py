@@ -1,11 +1,18 @@
 from common.utils.serializer import FrozenJson
 
 
-class OneBotSender:
+class OneBotSender(FrozenJson):
     user_id: int
     nickname: str
     sex: str
     age: int
+
+    # only for group
+    card: str   # group card
+    area: str
+    level: str
+    role: str
+    title: str
 
 
 class OneBotAnonymous:
@@ -65,3 +72,14 @@ class OneBotApiResponse(FrozenJson):
     wording: str
     data: dict
     echo: dict
+
+
+class GetGroupInfoResponse(FrozenJson):
+    group_id: int
+    group_name: str
+    group_memo: str
+    group_create_time: int
+    group_level: int
+    member_count: int
+    max_member_count: int
+

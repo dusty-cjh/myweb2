@@ -1,3 +1,4 @@
+import random
 import uuid
 import ujson as json
 from asgiref.sync import sync_to_async as s2a
@@ -42,7 +43,7 @@ class AbstractOneBotPluginConfig(serializer.Serializer):
 
     @classmethod
     def _get_module_name(cls):
-        return cls.__module__.split('.')[-1]
+        return cls.__module__
 
     @classmethod
     def _serialize_default_config(cls):
@@ -65,7 +66,7 @@ class AbstractOneBotPluginConfig(serializer.Serializer):
     def get_latest(cls):
         plugin_default_config = cls._serialize_default_config()
         try:
-            obj = cls.plugin_config_model.objects.get(name=cls._get_module_name())
+            obj = cls.plugin_config_model.objects.get(name=plugin_default_config['name'] or cls._get_module_name())
         except cls.plugin_config_model.DoesNotExist:
             # write default config to DB if it not exists
             kwargs = {}
@@ -94,6 +95,7 @@ class AbstractOneBotEventHandler:
     log: LoggingContextAdapter
     cfg_class = AbstractOneBotPluginConfig
     cfg: AbstractOneBotPluginConfig
+    permission_list = [lambda *args, **kwargs: True]
 
     def __init__(self, request: HttpRequest, context=None, **kwargs):
         self.context = context or dict()
@@ -104,13 +106,12 @@ class AbstractOneBotEventHandler:
     async def get_cfg(self):
         # global
         cls = self.__class__
-        _cfg_cache_key = getattr(cls, '_cfg_cache_key', uuid.uuid4().hex)
+        _cfg_cache_key = f'_cfg_cache_key.{self.cfg_class.__module__}'
 
         key = await cache.aget(_cfg_cache_key)
         if not key:
             cls.cfg = await s2a(self.cfg_class.get_latest)()
-            await cache.aset(_cfg_cache_key, 1, 60)
-            setattr(cls, '_cfg_cache_key', _cfg_cache_key)
+            await cache.aset(_cfg_cache_key, 1, 60 + random.randint(0, 30))
 
         return cls.cfg
 
@@ -132,6 +133,9 @@ class AbstractOneBotEventHandler:
             return await h(event, *args, **kwargs)
 
     async def should_check(self, event: OneBotEvent, *args, **kwargs):
+        for perm in self.permission_list:
+            if not perm(event, *args, **kwargs):
+                return False
         return True
 
     async def is_group_message(self, event: OneBotEvent):

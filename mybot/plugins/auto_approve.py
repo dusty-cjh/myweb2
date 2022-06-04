@@ -67,6 +67,7 @@ class PluginConfig(AbstractOneBotPluginConfig):
     MSG_NOTICE_CHECK_LATER = serializer.CharField(verbose_name='notice - check later', default='不是本科生？\n管理员稍后将手动验证')
     MSG_NOTICE_GONNA_KICK_OUT = serializer.CharField(verbose_name='notice - kick out', default='拿稳✈️🎫，一路顺风～\n👋👋')
 
+    name = serializer.CharField(default='auto_approve')
     verbose_name = serializer.CharField(default='自动通过')
 
 
@@ -174,8 +175,8 @@ class OneBotEventHandler(OneBotCmdMixin, AbstractOneBotEventHandler):
                 return
             qq = int(code.data['qq'])
             await ysu_check.add_job(qq, event.group_id)
-            noti = 'gonna do ysu_check for {} in {}'.format(event.user_id, group_info['group_name'])
-            await self.api.send_private_msg(noti, user_id=qq, group_id=event.group_id)
+            noti = 'gonna do ysu_check for {} in {}'.format(qq, group_info['group_name'])
+            await self.api.send_private_msg(noti, user_id=event.user_id, group_id=event.group_id)
 
 
 def mask_username(name):

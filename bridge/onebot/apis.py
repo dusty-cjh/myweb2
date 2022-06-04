@@ -8,7 +8,7 @@ import requests
 from django.core.cache import cache
 from django.utils.html import escape
 from common.utils import ErrCode
-from . import helper
+from . import helper, serializers
 from .settings import ONE_BOT
 
 
@@ -160,7 +160,8 @@ class AsyncOneBotApi:
     async def set_group_anonymous_ban(self, **kwargs):
         return await self._get_response('set_group_anonymous_ban', **kwargs)
 
-    async def get_group_info(self, group_id: int, no_cache=False):
+    async def get_group_info(self, group_id: int,
+                             no_cache=False) -> typing.Tuple[serializers.GetGroupInfoResponse, int]:
         return await self._get_response('get_group_info', group_id=group_id, no_cache=no_cache)
 
     async def get_group_list(self):
