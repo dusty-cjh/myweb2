@@ -164,7 +164,7 @@ class AsyncOneBotApi:
                              no_cache=False) -> typing.Tuple[serializers.GetGroupInfoResponse, int]:
         return await self._get_response('get_group_info', group_id=group_id, no_cache=no_cache)
 
-    async def get_group_list(self):
+    async def get_group_list(self) -> typing.Tuple[typing.List[serializers.GetGroupInfoResponse], int]:
         return await self._get_response('get_group_list')
 
     async def get_group_member_info(self, group_id: int, user_id: int, no_cache=False):

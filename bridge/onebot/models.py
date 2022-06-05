@@ -30,3 +30,5 @@ class AbstractPluginConfigs(models.Model):
         setattr(self, '_json_form_data', ret)
         return ret
 
+    def get_configs(self) -> dict:
+        return json.loads(self.configs)

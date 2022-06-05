@@ -1,8 +1,8 @@
 import ujson as json
 from django.contrib import admin
-from django.db import models
 from django import forms
 from django.utils.translation import gettext as _
+from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
 from .models import UserProfile, PluginConfigs, OneBotEventTab
 
 
@@ -46,14 +46,19 @@ class PluginConfigsAdmin(admin.ModelAdmin):
                 'required': False,
                 'initial': cfg_val,
             }
-            if isinstance(cfg_val, int):
-                form_field_class = forms.IntegerField(**form_field_kwargs)
-            elif isinstance(cfg_val, float):
-                form_field_class = forms.FloatField(**form_field_kwargs)
-            elif isinstance(cfg_val, bool):
-                form_field_class = forms.BooleanField(**form_field_kwargs)
+            if cfg_field_class.django_form_field:
+                form_field_class = cfg_field_class.django_form_field
             else:
-                form_field_class = forms.CharField(**form_field_kwargs, widget=forms.Textarea(attrs=dict(cols=80)))
+                if isinstance(cfg_val, int):
+                    form_field_class = forms.IntegerField(**form_field_kwargs)
+                elif isinstance(cfg_val, float):
+                    form_field_class = forms.FloatField(**form_field_kwargs)
+                elif isinstance(cfg_val, bool):
+                    form_field_class = forms.BooleanField(**form_field_kwargs)
+                elif isinstance(cfg_val, list):
+                    form_field_class = OnebotGroupMultiChoiceField(**form_field_kwargs)
+                else:
+                    form_field_class = forms.CharField(**form_field_kwargs, widget=forms.Textarea(attrs=dict(cols=80)))
             attrs[cfg_name] = form_field_class
         json_form = type(form)(form.__name__.replace('Form', 'JsonForm'), (form,), attrs)
 
@@ -85,5 +90,4 @@ class PluginConfigsAdmin(admin.ModelAdmin):
 @admin.register(OneBotEventTab)
 class OneBotEventTabAdmin(admin.ModelAdmin):
     list_display = 'message_id post_type message_type sub_type group_id user_id anonymous time'.split()
-
 

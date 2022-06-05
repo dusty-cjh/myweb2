@@ -12,7 +12,7 @@ class AutoStorage:
     __counter = 0
     verbose_name = ""
 
-    def __init__(self, field_name='', verbose_name="", null=False, default=None):
+    def __init__(self, field_name='', verbose_name="", null=False, default=None, django_form_field=None):
         cls = self.__class__
         name = cls.__name__
         index = cls.__counter
@@ -21,6 +21,7 @@ class AutoStorage:
         self.default_value = default
         self.allow_null = null
         self.field_name = field_name
+        self.django_form_field = django_form_field
         cls.__counter += 1
 
     def __get__(self, instance, owner):

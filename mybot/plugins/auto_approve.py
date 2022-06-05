@@ -12,15 +12,15 @@ from common.logger import Logger
 from common.constants import ErrCode
 from common import utils
 from common.utils import serializer
-from bridge.onebot import AbstractOneBotEventHandler, OneBotCmdMixin, PostType, CQCode, Role
+from bridge.onebot import AbstractOneBotEventHandler, PostType, CQCode, Role, AsyncOneBotApi
 from bridge.onebot import permissions
+from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
 from post.decorators import async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
     UserProfile as Profile, AbstractOneBotPluginConfig,
 )
 from mybot.manager import OneBotPrivateMessageSession
 from mybot.onebot.apis import get_session
-from bridge.onebot import AsyncOneBotApi
 from mybot import event_loop
 
 logger = Logger('mybot')
@@ -29,7 +29,10 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 
 class PluginConfig(AbstractOneBotPluginConfig):
-    YSU_GROUP = [1143835437, 645125440, 1127243020, 1079508725]
+    YSU_GROUP = serializer.ListField(
+        default=[1143835437, 645125440, 1127243020, 1079508725],
+        django_form_field=OnebotGroupMultiChoiceField(),
+    )
     MAX_LIFETIME = serializer.IntField(verbose_name='config - message max waiting time', default=60 if settings.DEBUG else 1800)
     # JUMP_HINT = {'研究生', '里仁'}
 
