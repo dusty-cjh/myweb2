@@ -47,7 +47,7 @@ class PluginConfigsAdmin(admin.ModelAdmin):
                 'initial': cfg_val,
             }
             if cfg_field_class.django_form_field:
-                form_field_class = cfg_field_class.django_form_field
+                form_field_class = cfg_field_class.django_form_field(**form_field_kwargs)
             else:
                 if isinstance(cfg_val, int):
                     form_field_class = forms.IntegerField(**form_field_kwargs)

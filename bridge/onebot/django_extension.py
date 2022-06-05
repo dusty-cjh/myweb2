@@ -22,4 +22,3 @@ class OnebotGroupMultiChoiceField(forms.TypedMultipleChoiceField):
         kwargs['choices'] = choices
         kwargs['help_text'] = kwargs.get('help_text', self.help_text)
         super().__init__(*args, **kwargs)
-

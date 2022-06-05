@@ -31,7 +31,7 @@ NORMAL_ERROR = Exception('auto_approve.normal_error')
 class PluginConfig(AbstractOneBotPluginConfig):
     YSU_GROUP = serializer.ListField(
         default=[1143835437, 645125440, 1127243020, 1079508725],
-        django_form_field=OnebotGroupMultiChoiceField(),
+        django_form_field=OnebotGroupMultiChoiceField,
     )
     MAX_LIFETIME = serializer.IntField(verbose_name='config - message max waiting time', default=60 if settings.DEBUG else 1800)
     # JUMP_HINT = {'研究生', '里仁'}
