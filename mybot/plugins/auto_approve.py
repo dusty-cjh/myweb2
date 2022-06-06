@@ -83,14 +83,7 @@ def msg_err_verify_hint(id, name):
 
 class OneBotEventHandler(AbstractOneBotEventHandler):
     cfg: PluginConfig
-    permission_list = [permissions.message_from_manager]
-
-    async def should_check(self, event, *args, **kwargs):
-        info, err = await self.api.with_cache(3600).get_group_member_info(event.group_id, event.self_id)
-        if err:
-            self.log.error('should_check.get_group_member_info failed, err={}, resp={}', err, info)
-            return False
-        return info['role'] in (Role.OWNER, Role.ADMIN)
+    permission_list = [permissions.is_group_message, permissions.message_from_manager]
 
     async def event_request_friend(self, event, *args, **kwargs):
         logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
