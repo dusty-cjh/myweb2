@@ -6,12 +6,14 @@ import xmltodict as xml
 from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 from django.conf import settings
-
+from django import forms
+from django.utils.translation import gettext as _
+from django.core.cache import cache
 from common.logger import Logger
 from common.constants import ErrCode
 from common import utils
 from common.utils import serializer
-from bridge.onebot import AbstractOneBotEventHandler, PostType, CQCode, Role, AsyncOneBotApi
+from bridge.onebot import AbstractOneBotEventHandler, PostType, CQCode, Role, AsyncOneBotApi, MessageType
 from bridge.onebot import permissions
 from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
 from post.decorators import async_coroutine, AsyncCoroutineFuncContext
@@ -27,12 +29,26 @@ counter = utils.new_counter(to_string=True)()
 NORMAL_ERROR = Exception('auto_approve.normal_error')
 
 
+class ApproveIntervalField(forms.IntegerField):
+    def __init__(self, *args, **kwargs):
+        kwargs.update({
+            'min_value': 1,
+            'help_text': _('interval between approves of friend or group request')
+        })
+        super().__init__(*args, **kwargs)
+
+
 class PluginConfig(AbstractOneBotPluginConfig):
     YSU_GROUP = serializer.ListField(
         default=[1143835437, 645125440, 1127243020, 1079508725],
         django_form_field=OnebotGroupMultiChoiceField,
     )
     MAX_LIFETIME = serializer.IntField(verbose_name='config - message max waiting time', default=60 if settings.DEBUG else 1800)
+    CFG_APPROVE_INTERVAL = serializer.IntField(
+        verbose_name='config - approve interval',
+        default=1 if settings.DEBUG else 30,
+        django_form_field=ApproveIntervalField,
+    )
     # JUMP_HINT = {'研究生', '里仁'}
 
     MSG_NOTICE_WELCOME = """注意！
@@ -83,38 +99,78 @@ def msg_err_verify_hint(id, name):
 
 class OneBotEventHandler(AbstractOneBotEventHandler):
     cfg: PluginConfig
-    permission_list = [permissions.is_group_message, permissions.message_from_manager]
+
+    async def should_check(self, event, *args, **kwargs):
+        # check group manager message
+        if permissions.is_group_message(event) and event.group_id in self.cfg.YSU_GROUP:
+            return permissions.message_from_manager(event)
+        # check friend & group request
+        if event.post_type == PostType.REQUEST:
+            return True
 
     async def event_request_friend(self, event, *args, **kwargs):
-        logger.info('approve {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
-        event_loop.call(AsyncOneBotApi().send_private_msg(
-            user_id=event.user_id,
-            message=plugin_config.MSG_NOTICE_WELCOME,
+        async def approve(flag, duration):
+            await aio.sleep(duration)
+            resp, err = await self.api.with_max_retry(3).set_friend_add_request(
+                flag,
+                remark=utils.get_datetime_now().strftime('%y/%m/%d %H:%M'),
+            )
+            if err:
+                self.log.error('approve friend {} request failed, err={}, resp={}', event.user_id, err, resp)
+            else:
+                self.log.info('approved {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
+
+        self.log.info('start approve friend request for {}', event.user_id)
+        now = utils.get_datetime_now()
+        cache_key = 'auto-approve.friend.add.latest_timestamp'
+        timestamp = await cache.aget(cache_key, now)
+        event_loop.call(approve(
+            event.flag,
+            self.cfg.CFG_APPROVE_INTERVAL if timestamp < now else (timestamp - now).seconds,
         ))
-        resp = {
-            'approve': True,
-            'remark': datetime.now().strftime('%y/%m/%d %H:%M'),
-        }
-        return resp
+        await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
+        return {}
 
     async def event_request_group_add(self, event, *args, **kwargs):
-        if event.group_id in plugin_config.YSU_GROUP:
+        async def approve(flag, duration):
+            await aio.sleep(duration)
             # check whether verification message contain school id
-            s = re.search(plugin_config.CONFIG_REGEXP_YSU_ID, event.comment)
+            s = re.search(self.cfg.CONFIG_REGEXP_YSU_ID, event.comment)
             if s and s.group():
                 profile, err = await create_user_profile(event.comment, event.user_id, s.group())
                 if err:
-                    return {
-                        'approve': False,
-                        'reason': msg_err_verify_hint(s.group(), profile),
-                    }
+                    resp, err = await self.api.with_max_retry(3).set_group_add_request(
+                        flag, approve=False, reason=msg_err_verify_hint(s.group(), profile))
+                    if err:
+                        self.log.error('{} approve group add request of {} failed, err={}, resp={}',
+                                       event.self_id, event.user_id, err, resp)
+                    else:
+                        self.log.info('{} approved group {} add {} ', event.self_id, event.group_id, event.user_id)
+            else:
+                resp, err = await self.api.with_max_retry(3).set_group_add_request(flag)
+                if err:
+                    self.log.error('{} approve group add request of {} failed, err={}, resp={}',
+                                   event.self_id, event.user_id, err, resp)
+                else:
+                    self.log.info('{} approved group {} add {} ', event.self_id, event.group_id, event.user_id)
 
-        logger.info('{} approve {} to join group {}: {}', event.self_id, event.user_id, event.group_id, event.comment)
-        resp = {
-            'approve': True,
-            'reason': '',
-        }
-        return resp
+            resp, err = await self.api.with_max_retry(3).set_group_add_request(flag)
+            if err:
+                self.log.error('{} approve group add request of {} failed, err={}, resp={}',
+                               event.self_id, event.user_id, err, resp)
+            else:
+                self.log.info('{} approved group {} add {} ', event.self_id, event.group_id, event.user_id)
+
+        self.log.info('start approve group add request for {}', event.user_id)
+        now = utils.get_datetime_now()
+        cache_key = 'auto-approve.group.add.latest_timestamp'
+        timestamp = await cache.aget(cache_key, now)
+        event_loop.call(approve(
+            event.flag,
+            self.cfg.CFG_APPROVE_INTERVAL if timestamp < now else (timestamp - now).seconds,
+        ))
+        await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
+        return {}
 
     async def event_request_group_invite(self, event, *args, **kwargs):
         self.log.data('{} agree {}\'s invitation of join group {}', event.self_id, event.user_id, event.group_id)

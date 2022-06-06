@@ -35,7 +35,6 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
     async def event_message_group_normal(self, event: OneBotEvent, *args, **kwargs):
         if Role.is_manager(event.sender.role):
             # process kick
-            self.log.info('start kick process')
             if event.raw_message.startswith('kick') or event.raw_message.endswith('kick'):
                 ret = await self.process_group_kick(event)
                 if ret:

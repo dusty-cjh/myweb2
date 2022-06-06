@@ -64,6 +64,9 @@ class OneBotEvent(FrozenJson):
     request_type: str
     comment: str
 
+    # friend / group add request
+    flag: str
+
 
 class OneBotApiResponse(FrozenJson):
     status: str

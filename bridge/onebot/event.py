@@ -96,6 +96,7 @@ class AbstractOneBotEventHandler:
     cfg_class = AbstractOneBotPluginConfig
     cfg: AbstractOneBotPluginConfig
     permission_list = [lambda *args, **kwargs: True]
+    permission_condition = None
 
     def __init__(self, request: HttpRequest, context=None, **kwargs):
         self.context = context or dict()
@@ -133,6 +134,9 @@ class AbstractOneBotEventHandler:
             return await h(event, *args, **kwargs)
 
     async def should_check(self, event: OneBotEvent, *args, **kwargs):
+        if self.permission_condition:
+            return self.permission_condition(event, *args, **kwargs)
+
         for perm in self.permission_list:
             if not perm(event, *args, **kwargs):
                 return False
