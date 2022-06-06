@@ -56,7 +56,7 @@ class PluginConfig(AbstractOneBotPluginConfig):
 10min 内验证失败将踢出群聊呦~"""
     MSG_NOTICE_GUIDE = serializer.CharField(verbose_name='notice - guide', default=MSG_NOTICE_GUIDE)
 
-    CONFIG_REGEXP_YSU_ID = serializer.CharField(verbose_name='config - ysu id regexp', default=r'(1\d{11}|20[12]\d{9})')
+    CONFIG_REGEXP_YSU_ID = serializer.CharField(verbose_name='config - ysu id regexp', default=r'(20[12]\d{9})')
     MSG_ERR_INPUT_CONTAINS_NO_ID = serializer.CharField(
         verbose_name='error - input contains no id',
         default='您所发的消息不含学号！请重新发送\n例：123456985211，赵险峰',
