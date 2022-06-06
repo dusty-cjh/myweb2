@@ -2,9 +2,8 @@ import re
 import sys
 import asyncio as aio
 import typing
-
 import xmltodict as xml
-from datetime import datetime
+from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 from django.conf import settings
 
@@ -242,7 +241,9 @@ async def create_user_profile(message: str, qq_number: int, college_student_numb
 async def ysu_check(ctx: AsyncCoroutineFuncContext, user_id: int, group_id: int, *args, ysu_info=None, has_noti=False, **kwargs):
     global plugin_config
     plugin_config = await s2a(PluginConfig.get_latest)()
-    session = OneBotPrivateMessageSession(user_id=user_id, group_id=group_id)
+    session = OneBotPrivateMessageSession(
+        user_id=user_id, group_id=group_id,
+        start_time=utils.get_datetime_now() - timedelta(seconds=10))
     api = AsyncOneBotApi().with_max_retry(1)
 
     if not user_id or not group_id:
