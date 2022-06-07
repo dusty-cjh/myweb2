@@ -3,6 +3,7 @@ import sys
 import asyncio as aio
 import typing
 import xmltodict as xml
+import random
 from datetime import datetime, timedelta
 from asgiref.sync import sync_to_async as s2a
 from django.conf import settings
@@ -133,7 +134,9 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         else:
             duration = (timestamp - now).seconds
         event_loop.call(approve(event.flag, duration))
-        await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
+        await cache.aset(
+            cache_key,
+            timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL + random.randint(0, 20)))
         return {}
 
     async def event_request_group_add(self, event, *args, **kwargs):
@@ -176,7 +179,10 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         else:
             duration = (timestamp - now).seconds
         event_loop.call(approve(event.flag, duration))
-        await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
+        await cache.aset(
+            cache_key,
+            timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL + random.randint(0, 20)),
+        )
         return {}
 
     async def event_request_group_invite(self, event, *args, **kwargs):
