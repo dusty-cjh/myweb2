@@ -143,15 +143,15 @@ DOMAIN = 'hdcjh.xyz'
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 DATABASES = {
     'live': {
-        'hdcjh': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'myweb2',
-            'USER': 'cjh',
-            'PASSWORD': '123456',
-            'HOST': '127.0.0.1',
-            'PORT': '3306',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+        # 'hdcjh': {    # deploy in hdcjh.xyz
+        #     'ENGINE': 'django.db.backends.mysql',
+        #     'NAME': 'myweb2',
+        #     'USER': 'cjh',
+        #     'PASSWORD': '123456',
+        #     'HOST': '127.0.0.1',
+        #     'PORT': '3306',
+        #     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        # },
         'default': {
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'myweb2_live',
