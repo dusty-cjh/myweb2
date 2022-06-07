@@ -59,6 +59,9 @@ class MessageType:
     GROUP = 'group'
 
 
+class NoticeType:
+    GROUP_UPLOAD = 'group_upload'
+
 class SubType:
     FRIEND = 'friend'
     GROUP = 'group'

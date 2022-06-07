@@ -105,7 +105,9 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         if permissions.is_group_message(event) and event.group_id in self.cfg.YSU_GROUP:
             return permissions.message_from_manager(event)
         # check friend & group request
-        if event.post_type == PostType.REQUEST:
+        elif event.post_type == PostType.REQUEST:
+            return True
+        elif event.post_type == PostType.NOTICE:
             return True
 
     async def event_request_friend(self, event, *args, **kwargs):
