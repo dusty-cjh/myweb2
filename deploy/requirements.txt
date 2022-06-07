@@ -20,4 +20,5 @@ bencodepy
 redis
 hiredis
 django-redis
+django-prometheus
 django

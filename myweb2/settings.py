@@ -55,10 +55,12 @@ INSTALLED_APPS = [
     'django_filters',
     'django_celery_results',
     'django_celery_beat',
+    'django_prometheus',
 ]
 SITE_ID = 1
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -70,6 +72,7 @@ MIDDLEWARE = [
     'common.middlewares.AccessLogMiddleware',
     'post.middleware.UserIDMiddleware',
     'config.middlewares.CorsMiddleWare',    # CORS
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'myweb2.urls'
@@ -159,13 +162,15 @@ DATABASES = {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         },
         'onebot': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
         },
     },
     'test': {
         'sqlite3': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
         },
         'hdcjh': {
@@ -187,7 +192,8 @@ DATABASES = {
             'init_command': "SET foreign_key_checks = 0;",
         },
         'onebot': {
-            'ENGINE': 'django.db.backends.sqlite3',
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
         },
     },
@@ -205,7 +211,8 @@ CACHES = {
     },
     'live': {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
+            'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
+            # 'BACKEND': 'django_redis.cache.RedisCache',
             "LOCATION": "redis://127.0.0.1:6379/1",
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",

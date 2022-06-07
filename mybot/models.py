@@ -4,6 +4,7 @@ from django.db import models
 from django.db.models import Q, F, Func, Value
 from django.contrib.auth.models import User
 from django.conf import settings
+from django_prometheus.models import ExportModelOperationsMixin
 from bridge.onebot import AbstractOneBotPluginConfig as BridgeAbstractOneBotPluginConfig
 from bridge.onebot import AbstractPluginConfigs
 
@@ -66,7 +67,7 @@ class PluginConfigs(AbstractPluginConfigs):
         return f'PluginConfigs(name={self.name})'
 
 
-class OneBotEventTab(models.Model):
+class OneBotEventTab(ExportModelOperationsMixin('OneBotEventTab'), models.Model):
     POST_TYPE_MESSAGE = 'message'
     POST_TYPE_REQUEST = 'request'
     POST_TYPE_NOTICE = 'notice'
