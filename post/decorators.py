@@ -126,7 +126,7 @@ class AsyncCoroutineFunc:
         )
         return ret
 
-    async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+    async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs) -> AsyncFuncJob:
         params = self.get_job_creating_params(*args, max_retry=max_retry, max_lifetime=max_lifetime, **kwargs)
         return await s2a(AsyncFuncJob.objects.create)(**params)
 

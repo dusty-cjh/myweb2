@@ -99,6 +99,7 @@ def msg_err_verify_hint(id, name):
 
 class OneBotEventHandler(AbstractOneBotEventHandler):
     cfg: PluginConfig
+    ysu_check_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*\[CQ:at,(.*?)\]\s*')
 
     async def should_check(self, event, *args, **kwargs):
         # check group manager message
@@ -126,10 +127,12 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         now = utils.get_datetime_now()
         cache_key = 'auto-approve.friend.add.latest_timestamp'
         timestamp = await cache.aget(cache_key, now)
-        event_loop.call(approve(
-            event.flag,
-            self.cfg.CFG_APPROVE_INTERVAL if timestamp < now else (timestamp - now).seconds,
-        ))
+        if timestamp <= now:
+            duration = self.cfg.CFG_APPROVE_INTERVAL
+            timestamp = now
+        else:
+            duration = (timestamp - now).seconds
+        event_loop.call(approve(event.flag, duration))
         await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
         return {}
 
@@ -167,10 +170,12 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         now = utils.get_datetime_now()
         cache_key = 'auto-approve.group.add.latest_timestamp'
         timestamp = await cache.aget(cache_key, now)
-        event_loop.call(approve(
-            event.flag,
-            self.cfg.CFG_APPROVE_INTERVAL if timestamp < now else (timestamp - now).seconds,
-        ))
+        if timestamp <= now:
+            duration = self.cfg.CFG_APPROVE_INTERVAL
+            timestamp = now
+        else:
+            duration = (timestamp - now).seconds
+        event_loop.call(approve(event.flag, duration))
         await cache.aset(cache_key, timestamp + timedelta(seconds=self.cfg.CFG_APPROVE_INTERVAL))
         return {}
 
@@ -197,11 +202,11 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
             return
 
         job = await ysu_check.add_job(event.user_id, event.group_id)
-        self.log.info('added ysu check job: uid={}, grp={}', event.user_id, event.group_id)
+        self.log.info('added ysu check job: uid={}, grp={}, job_id={}', event.user_id, event.group_id, job.id)
 
     async def event_message_group_normal(self, event, *args, **kwargs):
         group_info, _ = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
-        m = re.search(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*\[CQ:at,(.*?)\]\s*', event.message)
+        m = self.ysu_check_reg_pattern.search(event.message)
         li = CQCode.parse_cq_code_list(event.message)
         if m and len(li):
             code = li[0]
