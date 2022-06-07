@@ -18,6 +18,19 @@ class FrozenJson(dict):
     # wechat common field
     url: str
     media_id: str
+    appid: str
+    nonce_str: str
+    sign: str
+    mch_id: str
+
+    # wechat pay
+    return_code: str    # 'SUCCESS',
+    return_msg: str
+    result_code: str
+    total_fee: int
+    cash_fee: int
+    cash_refund_fee: int
+    refund_fee: int
 
     def __init__(self, arg=None, name='FrozenJson', ):
         if arg is None:

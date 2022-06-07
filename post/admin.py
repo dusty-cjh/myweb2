@@ -1,8 +1,10 @@
+from datetime import timedelta
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-
-from .models import Post, Summary, Article
+from django.utils.translation import gettext as _
+from common import utils
+from .models import Post, Summary, Article, AsyncFuncJob
 from .forms import ArticleAdminForm
 
 
@@ -41,3 +43,63 @@ class ArticleAdmin(admin.ModelAdmin):
         url = reverse("post:article", args=(obj.id,))
         return format_html("<a href='{0}'>{0}</a>".format(url))
     link.short_description = 'Hyperlink'
+
+
+@admin.register(AsyncFuncJob)
+class AsyncFuncJobAdmin(admin.ModelAdmin):
+    list_display = 'id func_name job_type params status col_retry expire_time mtime ctime result'.split()
+    fieldsets = (
+        (_('Job Parameters'), {
+            'fields': ('func_name', 'job_type', 'params', ),
+        }),
+        (_('Job Config'), {
+            'fields': ('max_retry', 'max_lifetime', 'expire_time', ),
+        }),
+        (_('Advance Settings'), {
+            'fields': ('status', 'retries', 'result', 'mtime'),
+        }),
+    )
+    actions = ['act_copy', 'act_to_pending', 'act_to_success', 'act_to_pause', ]
+
+    def save_model(self, request, obj: AsyncFuncJob, form, change):
+        now = utils.get_datetime_now()
+        if not obj.mtime:
+            obj.mtime = now
+        if not obj.expire_time:
+            obj.expire_time = obj.mtime + timedelta(seconds=obj.max_lifetime)
+        if not obj.result:
+            obj.result = ''
+
+        return super().save_model(request, obj, form, change)
+
+    def act_copy(self, request, queryset):
+        success_count = 0
+        for obj in queryset:
+            obj.pk = None
+            try:
+                obj.save()
+            except Exception as e:
+                pass
+            else:
+                success_count += 1
+        self.message_user(request, _(f'copied {success_count}/{len(queryset)} rows'))
+    act_copy.short_description = 'copy rows'
+
+    def act_to_pending(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_PENDING, retries=0)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to pending'))
+    act_to_pending.short_description = 'To pending'
+
+    def act_to_success(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_SUCCESS)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to success'))
+    act_to_success.short_description = 'To success'
+
+    def act_to_pause(self, request, queryset):
+        affected = queryset.update(status=AsyncFuncJob.STATUS_PAUSE)
+        self.message_user(request, _(f'{affected}/{len(queryset)} has to pause'))
+    act_to_pause.short_description = 'To pause'
+
+    def col_retry(self, obj: AsyncFuncJob):
+        return f'{obj.retries}/{obj.max_retry}'
+    col_retry.short_description = 'Tries'

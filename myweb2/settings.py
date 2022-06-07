@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 from django.utils.translation import gettext_lazy as _
+import pytz
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,10 +20,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
 ENV = os.environ.get('env', 'test')
-if ENV == 'live':
-    DEBUG = False
-else:
-    DEBUG = True
+DEBUG = False if ENV == 'live' else True
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'w9f5sp*d1d_4%183(3^q1vi@!ne)&#00+6nc7+tc)7r$jzq-c+'
@@ -35,18 +33,20 @@ USE_X_FORWARDED_HOST = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.auth',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'channels',
+    'django.contrib.sites',
+    'django.contrib.flatpages',
     'wechat.apps.WechatConfig',
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
     'collect.apps.CollectConfig',
-    'resource.apps.ResourceConfig',
+    # 'resource2.apps.ResourceConfig',
     'shop.apps.ShopConfig',
+    'mybot.apps.MybotConfig',
     'decentralization.apps.DecentralizationConfig',
 
     'rest_framework',
@@ -54,9 +54,14 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'django_ckeditor_5',
     'django_filters',
+    'django_celery_results',
+    'django_celery_beat',
+    'django_prometheus',
 ]
+SITE_ID = 1
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
@@ -68,6 +73,7 @@ MIDDLEWARE = [
     'common.middlewares.AccessLogMiddleware',
     'post.middleware.UserIDMiddleware',
     'config.middlewares.CorsMiddleWare',    # CORS
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
 ROOT_URLCONF = 'myweb2.urls'
@@ -122,6 +128,7 @@ LOCALE_PATHS = (
 )
 
 TIME_ZONE = 'Asia/Shanghai'
+PY_TIME_ZONE = pytz.timezone(TIME_ZONE)
 
 USE_I18N = True
 
@@ -147,34 +154,76 @@ CHANNEL_LAYERS = {
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 DATABASES = {
     'live': {
+        # 'hdcjh': {    # deploy in hdcjh.xyz
+        #     'ENGINE': 'django.db.backends.mysql',
+        #     'NAME': 'myweb2',
+        #     'USER': 'cjh',
+        #     'PASSWORD': '123456',
+        #     'HOST': '127.0.0.1',
+        #     'PORT': '3306',
+        #     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        # },
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'myweb2',
-            'USER': 'cjh',
-            'PASSWORD': '123456',
+            'NAME': 'myweb2_live',
+            'USER': 'myweb2_live',
+            'PASSWORD': 'p7jKfeSwpHEGrDT2',
             'HOST': '127.0.0.1',
             'PORT': '3306',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
+        },
+        'onebot': {
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
+        },
     },
     'test': {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
+        'sqlite3': {
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
             'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-        }
+        },
+        'hdcjh': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'myweb2_test',
+            'USER': 'myweb2_test',
+            'PASSWORD': 'vjq9g8349ghnb30f32e9z',
+            'HOST': 'hdcjh.xyz',
+            'PORT': '3306',
+            'init_command': "SET foreign_key_checks = 0;",
+        },
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'myweb2_test',
+            'USER': 'myweb2_test',
+            'PASSWORD': 's2ffKte5ZT7X4TZj',
+            'HOST': 'crash.hdcjh.xyz',
+            'PORT': '3306',
+            'init_command': "SET foreign_key_checks = 0;",
+        },
+        'onebot': {
+            # 'ENGINE': 'django.db.backends.sqlite3',
+            'ENGINE': 'django_prometheus.db.backends.sqlite3',
+            'NAME': os.path.join(BASE_DIR, 'onebot.sqlite3'),
+        },
     },
 }
 DATABASES = DATABASES[ENV]
 
+DATABASE_ROUTERS = ['mybot.models.OneBotEventDBRouter', ]
+
 CACHES = {
     'test': {
         'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'unique-snowflake',
+        },
     },
     'live': {
         'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
+            'BACKEND': 'django_prometheus.cache.backends.redis.RedisCache',
+            # 'BACKEND': 'django_redis.cache.RedisCache',
             "LOCATION": "redis://127.0.0.1:6379/1",
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
@@ -217,7 +266,7 @@ MEDIA_ROOT = {
 }
 MEDIA_ROOT = MEDIA_ROOT[ENV]
 
-RESOURCE_URL  = os.path.join(STATIC_URL, 'resource')
+RESOURCE_URL = os.path.join(STATIC_URL, 'resource')
 RESOURCE_ROOT = os.path.join(STATIC_ROOT, 'resource')
 
 ADMINS = [ ('Jiaohao.chen', 'jiahao.chen@seamoney.com'), ('dusty-cjh', 'dusty-cjh@qq.com'), ]
@@ -235,6 +284,11 @@ WECHAT = {
     'is_crypto': True,
 }
 
+ASYNC_JOB = {
+    'MAX_LIFETIME': 600 if DEBUG else 3600 * 2,
+    'MAX_RETRY': 3,
+}
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -245,6 +299,10 @@ LOGGING = {
         },
         'simple': {
             'format': '{levelname}|{message}',
+            'style': '{',
+        },
+        'info': {
+            'format': '{levelname}|{asctime}|{message}',
             'style': '{',
         },
         'heavy': {
@@ -291,25 +349,36 @@ LOGGING = {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'info.log'),
-            'formatter': 'heavy',
+            'formatter': 'info',
+            'encoding': 'utf8'
         },
         'error': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'error.log'),
             'formatter': 'error',
+            'encoding': 'utf8'
         },
         'access': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'access.log'),
             'formatter': 'access',
+            'encoding': 'utf8'
         },
         'data': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': os.path.join(BASE_DIR, 'log', 'data.log'),
             'formatter': 'data',
+            'encoding': 'utf8'
+        },
+        'async_job': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'log', 'async_job.log'),
+            'formatter': 'data',
+            'encoding': 'utf8'
         },
         'krpc': {
             'level': 'INFO',
@@ -319,14 +388,15 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console', 'daemon', ],
+        'handlers': ['console', 'daemon', ] if DEBUG else ['daemon', ],
         'level': 'INFO',
     },
     'loggers': {
         'info': {
             'handlers': ['info', 'mail_admins', ],
             'level': 'INFO',
-            'formatter': 'heavy',
+            'formatter': 'info',
+            'propagate': False,
         },
         'django.request': {
             'handlers': ['access', ],
@@ -353,5 +423,48 @@ LOGGING = {
             'handlers': ['krpc', ],
             'propagate': False,
         },
+        'async_job': {
+            'handlers': ['async_job', ],
+            'propagate': False,
+        },
     },
 }
+
+# rabbit mq
+RABBIT_MQ = {
+    'test': {
+        'url': 'amqp://localhost:5672/',
+        'exchange': [
+            {
+                'name': 'onebot.message.private',
+                'type': 'direct',
+            },
+            {
+                'name': 'onebot.message.group',
+                'type': 'direct',
+            },
+        ],
+    },
+    'live': {
+        'url': 'amqp://localhost:5672/',
+        'exchange': [
+            {
+                'name': 'onebot.message.private',
+                'type': 'direct',
+            },
+            {
+                'name': 'onebot.message.group',
+                'type': 'direct',
+            },
+        ],
+    },
+}
+RABBIT_MQ = RABBIT_MQ[ENV]
+
+# Celery Configuration Options
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 3600
+# CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_CACHE_BACKEND = 'default'

@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.http.request import HttpRequest
+from django.utils.translation import gettext as _
 from wechatpy import WeChatClient, WeChatClientException, WeChatException, WeChatPay, WeChatOAuth, parse_message
 from wechatpy.crypto import WeChatCrypto
 from wechatpy.exceptions import InvalidSignatureException, InvalidAppIdException
 from wechatpy.session.redisstorage import RedisStorage
+from wechatpy.pay.api.refund import WeChatRefund
 from redis import Redis
 
 from . import utils, mock
@@ -103,4 +105,26 @@ def parse_wechat_message(request: HttpRequest):
         msg = parse_message(decrypted_xml)
         request.log.info('wechat_manager.parse_wechat_message|message={}', msg)
         return msg
+
+
+@utils.dict_to_namedtuple(name='wechat_manager.wechatpay_refund')
+def wechatpay_refund(refund_fee, out_trade_no):
+    refund = get_wechat_pay().refund
+    ret = refund.apply(
+        total_fee=refund_fee, refund_fee=refund_fee,
+        out_trade_no=out_trade_no, out_refund_no=out_trade_no,
+    )
+    return ret
+
+
+@utils.dict_to_namedtuple(name='wechat_manager.wechatpay_redpack')
+def wechatpay_redpack(
+        user_id, total_amount,
+        send_name=_('dusty-hjc'), act_name=_('gift'), wishing=_('Best wishes'),
+        remark='', client_ip='', total_num=1, scene_id='',
+):
+    params = {k: v for k, v in locals().items()}
+    pay = get_wechat_pay()
+    ret = pay.redpack.send(**params)
+    return ret
 

@@ -92,7 +92,7 @@ class Order(models.Model):
 		(STATUS_FINISH, '已确认收货'),
 	)
 
-	user = models.ForeignKey('auth.User', on_delete=models.CASCADE, verbose_name='买家')
+	user = models.ForeignKey('auth.User', on_delete=models.CASCADE, verbose_name=_('Buyer'))
 	goods = models.ForeignKey(Goods, on_delete=models.CASCADE, verbose_name='商品')
 	nums = models.PositiveIntegerField(verbose_name='数量', default=1)
 	total_fee = models.FloatField(verbose_name='总费用', default=0)
