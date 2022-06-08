@@ -109,7 +109,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         # check friend & group request
         elif event.post_type == PostType.REQUEST:
             return True
-        elif event.post_type == PostType.NOTICE:
+        elif event.post_type == PostType.NOTICE and event.group_id in self.cfg.YSU_GROUP:
             return True
 
     async def event_request_friend(self, event, *args, **kwargs):
@@ -154,13 +154,6 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
                                        event.self_id, event.user_id, err, resp)
                     else:
                         self.log.info('{} approved group {} add {} ', event.self_id, event.group_id, event.user_id)
-            else:
-                resp, err = await self.api.with_max_retry(3).set_group_add_request(flag)
-                if err:
-                    self.log.error('{} approve group add request of {} failed, err={}, resp={}',
-                                   event.self_id, event.user_id, err, resp)
-                else:
-                    self.log.info('{} approved group {} add {} ', event.self_id, event.group_id, event.user_id)
 
             resp, err = await self.api.with_max_retry(3).set_group_add_request(flag)
             if err:

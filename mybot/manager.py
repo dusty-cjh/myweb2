@@ -27,6 +27,9 @@ class OneBotPrivateMessageSession:
 
         timeout_stamp = utils.get_datetime_now() + timedelta(seconds=timeout)
         while (cur := utils.get_datetime_now()) < timeout_stamp:
+            # sleep to wait for new message
+            await aio.sleep(5)
+
             # fresh data from DB
             queryset = OneBotEventTab.objects.filter(
                 post_type=OneBotEventTab.POST_TYPE_MESSAGE,
@@ -35,14 +38,8 @@ class OneBotPrivateMessageSession:
             )
             # if self.group_id is not None:
             #     queryset = queryset.filter(group_id=self.group_id)
-
-            # sleep for a while if DB got no data
             size = await s2a(lambda: len(queryset))()
-            if size == 0:
-                await aio.sleep(5)
-
-            # put messages into queryset
-            else:
+            if size > 0:
                 self.cursor_time = cur
                 for item in queryset[1:]:
                     self.message_pool.put(item)
