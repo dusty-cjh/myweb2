@@ -90,6 +90,24 @@ class AbstractOneBotPluginConfig(serializer.Serializer):
     def json_form_fields(cls):
         return cls._fields ^ set(cls.readonly_fields)
 
+    def save(self):
+        # get current config
+        plugin_config = {}
+        for field_name in self.__class__._fields:
+            field = getattr(self, field_name)
+            plugin_config[field_name] = field
+
+        # popup readonly fields
+        for key in self.readonly_fields:
+            if key in plugin_config:
+                plugin_config.pop(key)
+
+        # update plugin config
+        configs = json.dumps(plugin_config)
+        self.plugin_config_model.objects.filter(name=self.name).update(configs=configs)
+
+        return plugin_config
+
 
 class AbstractOneBotEventHandler:
     log: LoggingContextAdapter

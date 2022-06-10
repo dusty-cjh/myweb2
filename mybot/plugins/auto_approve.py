@@ -101,10 +101,12 @@ def msg_err_verify_hint(id, name):
 class OneBotEventHandler(AbstractOneBotEventHandler):
     cfg: PluginConfig
     ysu_check_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*\[CQ:at,(.*?)\]\s*')
+    ysu_check_add_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*add\s*$')
+    ysu_check_del_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*del\s*$')
 
     async def should_check(self, event, *args, **kwargs):
         # check group manager message
-        if permissions.is_group_message(event) and event.group_id in self.cfg.YSU_GROUP:
+        if permissions.is_group_message(event):
             return permissions.message_from_manager(event)
         # check friend & group request
         elif event.post_type == PostType.REQUEST:
@@ -204,17 +206,37 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         self.log.info('added ysu check job: uid={}, grp={}, job_id={}', event.user_id, event.group_id, job.id)
 
     async def event_message_group_normal(self, event, *args, **kwargs):
-        group_info, _ = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
+        # check params
+        if not event.group_id or not event.user_id:
+            return
+
+        group_info, err = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
         m = self.ysu_check_reg_pattern.search(event.message)
-        li = CQCode.parse_cq_code_list(event.message)
-        if m and len(li):
-            code = li[0]
-            if code.type != 'at':
-                return
-            qq = int(code.data['qq'])
-            await ysu_check.add_job(qq, event.group_id)
-            noti = 'gonna do ysu_check for {} in {}'.format(qq, group_info['group_name'])
-            await self.api.send_private_msg(noti, user_id=event.user_id, group_id=event.group_id)
+        if m and event.group_id in self.cfg.YSU_GROUP:
+            li = CQCode.parse_cq_code_list(event.message)
+            if len(li):
+                code = li[0]
+                if code.type != 'at':
+                    return
+                qq = int(code.data['qq'])
+                await ysu_check.add_job(qq, event.group_id)
+                noti = _('gonna do ysu_check for {} in {}'.format(qq, group_info['group_name']))
+                await self.api.send_private_msg(noti, user_id=event.user_id, group_id=event.group_id)
+        elif m := self.ysu_check_add_reg_pattern.search(event.message):
+            self.cfg.YSU_GROUP.append(event.group_id)
+            await s2a(self.cfg.save)()
+            print('dfsdgar', group_info)
+            noti = _('gonna enable ysu_check on group {group_name}({group_id}) in 1 minute'.format(
+                group_name=group_info['group_name'], group_id=event.group_id),
+            )
+            await self.api.send_private_msg(noti, user_id=event.user_id)
+        elif m := self.ysu_check_del_reg_pattern.search(event.message):
+            self.cfg.YSU_GROUP = list(filter(lambda x: x != event.group_id, self.cfg.YSU_GROUP))
+            await s2a(self.cfg.save)()
+            noti = _('gonna close ysu_check on group {group_name}({group_id}) in 1 minute'.format(
+                group_name=group_info['group_name'], group_id=event.group_id),
+            )
+            await self.api.send_private_msg(noti, user_id=event.user_id)
 
 
 def mask_username(name):
