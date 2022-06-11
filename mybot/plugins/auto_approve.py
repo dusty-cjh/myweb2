@@ -41,6 +41,7 @@ class ApproveIntervalField(forms.IntegerField):
 
 class PluginConfig(AbstractOneBotPluginConfig):
     YSU_GROUP = serializer.ListField(
+        verbose_name='config - ysu groups',
         default=[1143835437, 645125440, 1127243020, 1079508725],
         django_form_field=OnebotGroupMultiChoiceField,
     )
@@ -50,6 +51,9 @@ class PluginConfig(AbstractOneBotPluginConfig):
         default=1 if settings.DEBUG else 30,
         django_form_field=ApproveIntervalField,
     )
+    AUTO_APPROVE = serializer.BooleanField(
+        verbose_name='config - auto-approve switch', default=False,
+        django_form_field=forms.BooleanField)
     # JUMP_HINT = {'研究生', '里仁'}
 
     MSG_NOTICE_WELCOME = """注意！
@@ -109,7 +113,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         if permissions.is_group_message(event):
             return permissions.message_from_manager(event)
         # check friend & group request
-        elif event.post_type == PostType.REQUEST:
+        elif self.cfg.AUTO_APPROVE and event.post_type == PostType.REQUEST:
             return True
         elif event.post_type == PostType.NOTICE and event.group_id in self.cfg.YSU_GROUP:
             return True

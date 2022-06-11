@@ -1,9 +1,11 @@
+ipython
 django-pandas
 django-ckeditor
 django-ckeditor-5
 coreapi
 Pillow
 simpleui
+django-simpleui
 cryptography
 pyyaml
 markdown

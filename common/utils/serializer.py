@@ -119,6 +119,12 @@ class IntField(Validated):
         return value
 
 
+class BooleanField(Validated):
+    def validate(self, instance, value):
+        assert isinstance(value, bool)
+        return value
+
+
 class DictField(Validated):
     def validate(self, instance, value):
         if not isinstance(value, dict):
@@ -133,6 +139,15 @@ class ListField(Validated):
         if not isinstance(value, list):
             raise TypeError(
                 '%s only accepts list, but received %s' % (self.__class__.__name__, value.__class__.__name__),
+            )
+        return value
+
+
+class SetField(Validated):
+    def validate(self, instance, value):
+        if not isinstance(value, set):
+            raise TypeError(
+                '%s only accepts set, but received %s' % (self.__class__.__name__, value.__class__.__name__),
             )
         return value
 
