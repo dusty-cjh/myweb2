@@ -10,3 +10,4 @@ tests/
 **/log
 **/logs
 deploy/go-cqhttp/data
+env
