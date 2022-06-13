@@ -1,4 +1,5 @@
 ipython
+cachetools
 django-pandas
 django-ckeditor
 django-ckeditor-5

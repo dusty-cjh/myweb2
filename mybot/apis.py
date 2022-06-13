@@ -1,4 +1,6 @@
 import asyncio as aio
+import time
+
 import ujson
 from functools import wraps
 from django.http.request import HttpRequest
@@ -21,3 +23,14 @@ async def index(request: HttpRequest, *args, **kwargs):
             return HttpResponse(b'', status=200)
     else:
         return HttpResponse(b'', status=200)
+
+
+async def test_event_loop(request: HttpRequest, *args, **kwargs):
+    def hello():
+        for i in range(10):
+            print('hello', i)
+            time.sleep(1)
+
+    aio.get_running_loop().run_in_executor(None, hello)
+
+    return HttpResponse('done')

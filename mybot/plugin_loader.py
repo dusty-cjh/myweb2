@@ -1,7 +1,9 @@
 import os
 import sys
+import cachetools
 import ujson
 import importlib
+from asgiref.sync import sync_to_async as s2a
 from rest_framework.serializers import Serializer
 from django.http.request import HttpRequest
 from django.conf import settings
@@ -90,6 +92,16 @@ def import_plugins():
 import_plugins()
 
 
+@cachetools.cached(cache=cachetools.TTLCache(maxsize=10, ttl=60))
+def get_sorted_event_handlers():
+    handlers = sorted(
+        map(lambda module: module.OneBotEventHandler, PLUGIN_MODULES.values()),
+        key=lambda h: h.get_cfg_sync().sort_weight,
+        reverse=True,
+    )
+    return list(handlers)
+
+
 async def dispatch(request: HttpRequest):
     event_loop.get_event_loop()
     raw_event = ujson.loads(request.body)
@@ -100,8 +112,9 @@ async def dispatch(request: HttpRequest):
         return resp
 
     # handle by event
-    for plugin_name, module in PLUGIN_MODULES.items():
-        h = module.OneBotEventHandler(request=request)
+    handler_list = await s2a(get_sorted_event_handlers)()
+    for handle_class in handler_list:
+        h = handle_class(request)
         resp = await h.dispatch(event)
         if isinstance(resp, Serializer):
             return resp.data

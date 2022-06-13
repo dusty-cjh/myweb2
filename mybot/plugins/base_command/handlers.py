@@ -1,8 +1,17 @@
+import asyncio as aio
+import random
+from datetime import timedelta
 import re
 from asgiref.sync import sync_to_async as s2a
 from django.db.utils import OperationalError
-from bridge.onebot import OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin, Role
+from django.core.cache import cache
+from bridge.onebot import (
+    OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin, Role, PostType, RequestType,
+)
+from common import utils
 from mybot.models import OneBotEventTab
+from mybot import event_loop
+from .settings import PluginConfig, CacheKey
 
 
 MSG_SUCCESS_KICK = '已踢'
@@ -14,6 +23,13 @@ PLUGIN_NAME = '基本命令'
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
+    cfg: PluginConfig
+
+    async def should_check(self, event: OneBotEvent, *args, **kwargs):
+        # auto_approve
+        if event.post_type == PostType.REQUEST:
+            return True
+
     async def event_message_private(self, event: OneBotEvent, *args, **kwargs):
         # save all private message to DB
         try:
@@ -99,3 +115,56 @@ class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
             return {
                 'reply': MSG_SUCCESS_KICK,
             }
+
+    async def event_request_friend(self, event: OneBotEvent, *args, **kwargs):
+        async def approve(flag, duration):
+            await aio.sleep(duration)
+            resp, err = await self.api.with_max_retry(3).set_friend_add_request(
+                flag,
+                remark=utils.get_datetime_now().strftime('%y/%m/%d %H:%M'),
+            )
+            if err:
+                self.log.error('approve friend {} request failed, err={}, resp={}', event.user_id, err, resp)
+            else:
+                self.log.info('approved {} add {} as friend: {}', event.user_id, event.self_id, event.comment)
+
+        self.log.info('start approve group add request for {}', event.user_id)
+        now = utils.get_datetime_now()
+        timestamp = await cache.aget(CacheKey.AUTO_APPROVE_FRIEND_ADD, now)
+        if timestamp <= now:
+            duration = self.cfg.AUTO_APPROVE_FRIEND_ADD_REQUEST
+            timestamp = now
+        else:
+            duration = (timestamp - now).seconds
+        event_loop.call(approve(event.flag, duration))
+        await cache.aset(
+            CacheKey.AUTO_APPROVE_FRIEND_ADD,
+            timestamp + timedelta(seconds=self.cfg.AUTO_APPROVE_INTERVAL + random.randint(0, 20)),
+        )
+
+        # block propagate
+        return {}
+
+    async def event_request_group_add(self, event: OneBotEvent, *args, **kwargs):
+        async def approve(flag, duration):
+            await aio.sleep(duration)
+            resp, err = await self.api.with_max_retry(3).set_group_add_request(flag)
+            if err:
+                self.log.error('approve group add request failed, err={}, resp={}', err, resp)
+            else:
+                self.log.info('approved group add request, resp={}', resp)
+
+        self.log.info('start approve group add request for {}', event.user_id)
+        now = utils.get_datetime_now()
+        timestamp = await cache.aget(CacheKey.AUTO_APPROVE_GRUOP_ADD, now)
+        if timestamp <= now:
+            duration = self.cfg.AUTO_APPROVE_INTERVAL
+            timestamp = now
+        else:
+            duration = (timestamp - now).seconds
+        event_loop.call(approve(event.flag, duration))
+        await cache.aset(
+            CacheKey.AUTO_APPROVE_GRUOP_ADD,
+            timestamp + timedelta(seconds=self.cfg.AUTO_APPROVE_INTERVAL + random.randint(0, 20)),
+        )
+        return {}

@@ -112,9 +112,9 @@ class IntField(Validated):
         self.max_val, self.min_val = max_val, min_val
 
     def validate(self, instance, value):
-        if self.min_val is not None and len(value) < self.min_val:
+        if self.min_val is not None and value < self.min_val:
             raise ValueError('min_val:{}'.format(self.min_val))
-        if self.max_val is not None and len(value) > self.max_val:
+        if self.max_val is not None and value > self.max_val:
             raise ValueError('max_val:{}'.format(self.max_val))
         return value
 
@@ -137,18 +137,20 @@ class DictField(Validated):
 class ListField(Validated):
     def validate(self, instance, value):
         if not isinstance(value, list):
-            raise TypeError(
-                '%s only accepts list, but received %s' % (self.__class__.__name__, value.__class__.__name__),
-            )
+            try:
+                value = list(value)
+            except Exception as e:
+                raise TypeError('can not convert value to a set, err={}, value={}'.format(e, value))
         return value
 
 
 class SetField(Validated):
     def validate(self, instance, value):
         if not isinstance(value, set):
-            raise TypeError(
-                '%s only accepts set, but received %s' % (self.__class__.__name__, value.__class__.__name__),
-            )
+            try:
+                value = set(value)
+            except Exception as e:
+                raise TypeError('can not convert value to a set, err={}, value={}'.format(e, value))
         return value
 
 

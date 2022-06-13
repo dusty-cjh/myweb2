@@ -38,6 +38,7 @@ class AbstractOneBotPluginConfig(serializer.Serializer):
     name = serializer.CharField(default='')
     verbose_name = serializer.CharField(default='')
     short_description = serializer.CharField(default='')
+    sort_weight = serializer.IntField(default=1, min_val=-1, max_val=256)
     readonly_fields = 'name verbose_name'.split()
     plugin_config_model = AbstractPluginConfigs
 
@@ -119,18 +120,30 @@ class AbstractOneBotEventHandler:
     def __init__(self, request: HttpRequest, context=None, **kwargs):
         self.context = context or dict()
         self.request = request
-        self.log = getattr(request, 'log', None)
+        self.log = getattr(request, 'log').with_field('plugin', self.__class__.__name__)
         self.api = OneBotApi()
 
-    async def get_cfg(self):
+    @classmethod
+    async def get_cfg(cls):
         # global
-        cls = self.__class__
-        _cfg_cache_key = f'_cfg_cache_key.{self.cfg_class.__module__}'
+        _cfg_cache_key = f'_cfg_cache_key.{cls.cfg_class.__module__}'
 
         key = await cache.aget(_cfg_cache_key)
         if not key or not getattr(cls, 'cfg', None):
-            cls.cfg = await s2a(self.cfg_class.get_latest)()
+            cls.cfg = await s2a(cls.cfg_class.get_latest)()
             await cache.aset(_cfg_cache_key, 1, 60 + random.randint(0, 30))
+
+        return cls.cfg
+
+    @classmethod
+    def get_cfg_sync(cls):
+        # global
+        _cfg_cache_key = f'_cfg_cache_key.{cls.cfg_class.__module__}'
+
+        key = cache.get(_cfg_cache_key)
+        if not key or not getattr(cls, 'cfg', None):
+            cls.cfg = cls.cfg_class.get_latest()
+            cache.set(_cfg_cache_key, 1, 60 + random.randint(0, 30))
 
         return cls.cfg
 
