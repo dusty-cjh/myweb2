@@ -7,10 +7,7 @@ ONE_BOT = {
     'timeout': 5,   # in seconds
     'secret_key': 'cjh',
 }
-
-_onebot_settings = getattr(settings, 'ONE_BOT', None)
-if isinstance(_onebot_settings, dict):
-    ONE_BOT.update(_onebot_settings)
+ONE_BOT.update(getattr(settings, 'ONE_BOT', {}))
 
 _status_to_errmsg = {
     200: '',

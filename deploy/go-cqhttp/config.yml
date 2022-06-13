@@ -14,12 +14,12 @@ account: # 账号相关
   # 注意, 此设置可能导致在海外服务器上连接情况更差
   use-sso-address: true
   # 是否允许发送临时会话消息
-  allow-temp-session: false
+  allow-temp-session: true
 
 heartbeat:
   # 心跳频率, 单位秒
   # -1 为关闭心跳
-  interval: -1
+  interval: 60
 
 message:
   # 上报数据类型
@@ -102,7 +102,7 @@ servers:
       middlewares:
         <<: *default # 引用默认中间件
       post:           # 反向HTTP POST地址列表
-        - url: 'http://localhost:9091/mybot/'                # 地址
+        - url: 'http://localhost:9090/mybot/'                # 地址
           secret: 'cjh'             # 密钥
           max-retries: 3         # 最大重试，0 时禁用
           retries-interval: 1500 # 重试时间，单位毫秒，0 时立即

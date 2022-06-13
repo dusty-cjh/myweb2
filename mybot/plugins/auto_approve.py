@@ -215,8 +215,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
             return
 
         group_info, err = await self.api.with_max_retry(3).get_group_info(group_id=event.group_id)
-        m = self.ysu_check_reg_pattern.search(event.message)
-        if m and event.group_id in self.cfg.YSU_GROUP:
+        if m := self.ysu_check_reg_pattern.search(event.message):
             li = CQCode.parse_cq_code_list(event.message)
             if len(li):
                 code = li[0]
@@ -285,7 +284,7 @@ async def get_school_id(session: OneBotPrivateMessageSession, cfg: PluginConfig,
         # get user input
         resp = await session.get_message(timeout=cfg.MAX_LIFETIME)
         if not resp:
-            return None, None, TimeoutError('get_school_id timeout')
+            return None, None, TimeoutError('get_school_id timeout in {} seconds'.format(cfg.MAX_LIFETIME))
 
         # search ysu id
         message = resp.message
