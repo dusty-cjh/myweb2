@@ -40,7 +40,8 @@ class OneBotPrivateMessageSession:
             #     queryset = queryset.filter(group_id=self.group_id)
             size = await s2a(lambda: len(queryset))()
             if size > 0:
-                self.cursor_time = cur
+                msg = queryset[0]
+                self.cursor_time = msg.time
                 for item in queryset[1:]:
                     self.message_pool.put(item)
-                return queryset[0]
+                return msg
