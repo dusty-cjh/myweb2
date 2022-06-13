@@ -2,16 +2,21 @@ import asyncio as aio
 import re
 from asgiref.sync import async_to_sync as a2s
 from django.core.cache import cache
-from bridge.onebot import AsyncOneBotApi, AbstractOneBotEventHandler, CQCode
+from bridge.onebot import AsyncOneBotApi, AbstractOneBotEventHandler, CQCode, PostType, MessageType
 from bridge.onebot.permissions import message_from_manager
 from mybot.event_loop import call
 from .async_jobs import recall_message
+from .settings import PluginConfig
 
 
 class OneBotEventHandler(AbstractOneBotEventHandler):
-    permission_list = [message_from_manager]
+    cfg: PluginConfig
     ad_re_pattern = re.compile(
         r'^\s*(?:ad|alzheimer dementia|老年痴呆|alzheimer)\s*(stop|[1-9]\d*)\s*(min|sec|hours?|days?)?\s*$')
+
+    async def should_check(self, event, *args, **kwargs):
+        if event.post_type in (PostType.MESSAGE, PostType.MESSAGE_SENT) and event.message_type == MessageType.GROUP:
+            return True
 
     async def event_message_group_normal(self, event, *args, **kwargs):
         # whether recall message, run in background
@@ -54,7 +59,8 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         return await self.event_message_group_normal(event, *args, **kwargs)
 
     async def process_message(self, event, *args, **kwargs):
-        interval = await cache.aget(self.get_alzheimer_cache_key(event, *args, **kwargs))
+        cache_key = self.get_alzheimer_cache_key(event, *args, **kwargs)
+        interval = await cache.aget(cache_key)
         if interval:
             await aio.sleep(interval)
             resp, err = await self.api.delete_msg(event.message_id)
@@ -62,5 +68,6 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
                 self.log.warning('recall message failed, err={}, resp={}', err, resp)
 
     def get_alzheimer_cache_key(self, event, *args, **kwargs):
+        assert event.group_id is not None
         key = 'alzheimer_dementia_plugin.{}'.format(event.group_id)
         return key
