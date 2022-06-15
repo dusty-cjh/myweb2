@@ -45,7 +45,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         # await recall_message.add_job(event.user_id, event.group_id, t)
         key = self.get_alzheimer_cache_key(event, *args, **kwargs)
         val = t
-        await cache.aset(key, val)
+        await cache.aset(key, val, None)
         await self.api.send_private_msg(
             self.cfg.NOTI_RUNNING.format(
                 group_id='{}({})'.format(group_info.get('group_name'), event.group_id),

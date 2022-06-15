@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, apis
 
 app_name = 'post'
 urlpatterns = [
@@ -13,4 +13,8 @@ urlpatterns = [
     path('article/<int:pk>', views.ArticleDetailView.as_view(), name='article'),
 
     path('MP_verify_cnuhJDCblRVDP7Vf.txt', views.wx_verify, name='wx-verify'),
+]
+
+urlpatterns += [
+    path('cache/data/<str:name>', apis.get_cache_data, name='cache-data')
 ]

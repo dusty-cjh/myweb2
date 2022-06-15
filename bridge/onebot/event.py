@@ -1,9 +1,9 @@
 import random
-import uuid
 import ujson as json
 from asgiref.sync import sync_to_async as s2a
 from django.http.request import HttpRequest
 from django.core.cache import cache
+from django import forms
 from common.middlewares import LoggingContextAdapter
 from common.utils import serializer
 from common import utils
@@ -34,11 +34,29 @@ def get_event_name(event: OneBotEvent):
     return name
 
 
+class IntListWithComma(forms.Textarea):
+    def format_value(self, value):
+        assert isinstance(value, set)
+        return ','.join(map(lambda x: str(x), value))
+
+
+class IntListField(forms.CharField):
+    widget = IntListWithComma
+
+    def clean(self, value):
+        value = [int(x) for x in value.split(',')]
+        return value
+
+
 class AbstractOneBotPluginConfig(serializer.Serializer):
     name = serializer.CharField(default='')
     verbose_name = serializer.CharField(default='')
     short_description = serializer.CharField(default='')
     sort_weight = serializer.IntField(default=1, min_val=-1, max_val=256)
+    self_id_list = serializer.SetField(
+        default=[2930007061, 1157603107, 775762961, 1845574945, 1042870284],
+        django_form_field=IntListField,
+    )
     readonly_fields = 'name verbose_name'.split()
     plugin_config_model = AbstractPluginConfigs
 
