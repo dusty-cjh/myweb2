@@ -3,7 +3,7 @@ from django.contrib import admin
 from django import forms
 from django.utils.translation import gettext as _
 from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
-from .models import UserProfile, PluginConfigs, OneBotEventTab
+from .models import UserProfile, PluginConfigs, OneBotEventTab, OneBotApiConfig
 
 
 @admin.register(UserProfile)
@@ -91,3 +91,7 @@ class PluginConfigsAdmin(admin.ModelAdmin):
 class OneBotEventTabAdmin(admin.ModelAdmin):
     list_display = 'message_id post_type message_type sub_type group_id user_id anonymous time'.split()
 
+
+@admin.register(OneBotApiConfig)
+class OneBotApiConfig(admin.ModelAdmin):
+    list_display = 'self_id host sort_weight'.split()

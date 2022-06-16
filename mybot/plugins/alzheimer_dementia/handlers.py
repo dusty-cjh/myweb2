@@ -2,14 +2,14 @@ import asyncio as aio
 import re
 from asgiref.sync import async_to_sync as a2s
 from django.core.cache import cache
-from bridge.onebot import AsyncOneBotApi, AbstractOneBotEventHandler, CQCode, PostType, MessageType
-from bridge.onebot.permissions import message_from_manager
+from bridge.onebot import PostType, MessageType
 from mybot.event_loop import call
+from mybot.models import BaseOneBotEventHandler
 from .async_jobs import recall_message
 from .settings import PluginConfig
 
 
-class OneBotEventHandler(AbstractOneBotEventHandler):
+class OneBotEventHandler(BaseOneBotEventHandler):
     cfg: PluginConfig
     ad_re_pattern = re.compile(
         r'^\s*(?:ad|alzheimer dementia|老年痴呆|alzheimer)\s*(stop|[1-9]\d*)\s*(min|sec|hours?|days?)?\s*$')
@@ -46,7 +46,7 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
         key = self.get_alzheimer_cache_key(event, *args, **kwargs)
         val = t
         await cache.aset(key, val, None)
-        await self.api.send_private_msg(
+        resp, err = await self.api.send_private_msg(
             self.cfg.NOTI_RUNNING.format(
                 group_id='{}({})'.format(group_info.get('group_name'), event.group_id),
                 interval=t,
@@ -54,6 +54,8 @@ class OneBotEventHandler(AbstractOneBotEventHandler):
             event.user_id,
             event.group_id,
         )
+        if err:
+            self.log.warning('noti user faield, err={}, resp={}', err, resp)
 
     async def event_message_sent_group_normal(self, event, *args, **kwargs):
         return await self.event_message_group_normal(event, *args, **kwargs)

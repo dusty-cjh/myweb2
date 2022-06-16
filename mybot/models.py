@@ -7,6 +7,8 @@ from django.conf import settings
 from django_prometheus.models import ExportModelOperationsMixin
 from bridge.onebot import AbstractOneBotPluginConfig as BridgeAbstractOneBotPluginConfig
 from bridge.onebot import AbstractPluginConfigs
+from bridge.onebot.models import AbstractOneBotApiConfig
+from bridge.onebot.event import AbstractOneBotEventHandler
 
 
 class UserProfile(models.Model):
@@ -153,6 +155,11 @@ class AbstractOneBotPluginConfig(BridgeAbstractOneBotPluginConfig):
     plugin_config_model = PluginConfigs
 
 
+class OneBotApiConfig(AbstractOneBotApiConfig):
+    class Meta:
+        verbose_name = verbose_name_plural = 'OneBotApiConfig'
+
+
 class OneBotEventDBRouter:
     """
     A router to control all database operations on models in the
@@ -197,3 +204,8 @@ class OneBotEventDBRouter:
         if app_label in self.route_app_labels:
             return db in (self._db_for_read, self._db_for_write)
         return None
+
+
+class BaseOneBotEventHandler(AbstractOneBotEventHandler):
+    bot_config_class = OneBotApiConfig
+

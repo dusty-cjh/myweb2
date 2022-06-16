@@ -7,10 +7,10 @@ from django import forms
 from common.middlewares import LoggingContextAdapter
 from common.utils import serializer
 from common import utils
-from .apis import AsyncOneBotApi as OneBotApi
+from .apis import AsyncOneBotApi as OneBotApi, OneBotApiOptions
 from .serializers import OneBotEvent
 from . import settings as constants
-from .models import AbstractPluginConfigs
+from .models import AbstractPluginConfigs, AbstractOneBotApiConfig
 
 CLASS_NAME_PLUGIN_CONFIG = 'PluginConfig'
 
@@ -134,12 +134,14 @@ class AbstractOneBotEventHandler:
     cfg: AbstractOneBotPluginConfig
     permission_list = [lambda *args, **kwargs: True]
     permission_condition = None
+    api = OneBotApi()
+    bot_config_class: AbstractOneBotApiConfig = None
 
     def __init__(self, request: HttpRequest, context=None, **kwargs):
+        assert self.bot_config_class is not None
         self.context = context or dict()
         self.request = request
-        self.log = getattr(request, 'log').with_field('plugin', self.__class__.__name__)
-        self.api = OneBotApi()
+        self.log = getattr(request, 'log').with_field('plugin', self.__class__.__module__)
 
     @classmethod
     async def get_cfg(cls):
@@ -173,6 +175,10 @@ class AbstractOneBotEventHandler:
         if not await self.should_check(event, *args, **kwargs):
             return
 
+        # get api config
+        self.api = OneBotApi(api_config=await s2a(self.bot_config_class.get_by_self_id)(event.self_id))
+        self.log.info('got robot api, self_id={}, host={}', event.self_id, self.api.options.host)
+
         # event_name = get_event_name(event)
         # for handler_name in utils.chain(event_name.split('.'), sep='_', prefix='event'):
         #     if h := getattr(self, handler_name, None):
@@ -181,6 +187,8 @@ class AbstractOneBotEventHandler:
         h = getattr(self, event_name, None)
         if h:
             return await h(event, *args, **kwargs)
+        else:
+            self.log.warning('unhandled event, post_type={}, event_name=[}', event.post_type, event_name)
 
     async def should_check(self, event: OneBotEvent, *args, **kwargs):
         if self.permission_condition:
@@ -200,11 +208,16 @@ class AbstractOneBotEventHandler:
         h = getattr(self, 'event_message_' + event.message_type, None)
         if h:
             return await h(event, *args, **kwargs)
+        else:
+            self.log.warning('unhandled event, message_type={}', event.message_type)
 
     async def event_message_group(self, event: OneBotEvent, *args, **kwargs):
-        h = getattr(self, 'event_message_group_' + event.sub_type, None)
+        event_name = 'event_message_group_' + event.sub_type
+        h = getattr(self, event_name, None)
         if h:
             return await h(event, *args, **kwargs)
+        else:
+            self.log.warning('unhandled event, event_name={}', event_name)
 
     async def event_message_private(self, event: OneBotEvent, *args, **kwargs):
         h = getattr(self, 'event_message_private_' + event.sub_type, None)
@@ -387,8 +400,28 @@ class AbstractOneBotEventHandler:
     async def event_request_group_invite(self, event: OneBotEvent, *args, **kwargs):
         pass
 
-    async def meta_event(self, event: OneBotEvent, *args, **kwargs):
+    # ============= meta event ===============
+
+    async def event_meta_event(self, event: OneBotEvent, *args, **kwargs):
+        h = getattr(self, 'event_meta_event_' + event.meta_event_type, None)
+        if h:
+            return await h(event, *args, **kwargs)
+        else:
+            self.log.warning('unhandled event, meta_event_type={}', event.meta_event_type)
+
+    async def event_meta_event_lifecycle(self, event: OneBotEvent, *args, **kwargs):
         pass
+
+    async def event_meta_event_heartbeat(self, event: OneBotEvent, *args, **kwargs):
+        #   auto discover new robot
+        obj, affected = await s2a(self.bot_config_class.objects.get_or_create)(
+            self_id=event.self_id,
+            host=utils.get_client_ip(self.request),
+        )
+        if affected:
+            self.log.info('discovered new robot instance, self_id={}, admin id={}', obj.self_id, obj.id)
+
+        return {}
 
 
 class OneBotCmdMixin:

@@ -49,6 +49,7 @@ class PostType:
     REQUEST = 'request'
     OTHER = 'other'
     META_INFO = 'meta_info'
+    META_EVENT = 'meta_event'
 
 
 class MessageType:
@@ -63,6 +64,11 @@ class NoticeType:
 class RequestType:
     FRIEND = 'friend'
     GROUP = 'group'
+
+
+class MetaEventType:
+    LIFE_CYCLE = 'lifecycle'
+    HEART_BEAT = 'heartbeat'
 
 
 class SubType:

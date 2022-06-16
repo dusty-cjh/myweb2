@@ -64,6 +64,8 @@ class OneBotEvent(FrozenJson):
     request_type: str
     comment: str
 
+    meta_event_type: str
+
     # friend / group add request
     flag: str
 

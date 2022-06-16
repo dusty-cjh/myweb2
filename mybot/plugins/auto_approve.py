@@ -14,12 +14,12 @@ from common.logger import Logger
 from common.constants import ErrCode
 from common import utils
 from common.utils import serializer
-from bridge.onebot import AbstractOneBotEventHandler, PostType, CQCode, Role, AsyncOneBotApi, MessageType
+from bridge.onebot import PostType, CQCode, Role, AsyncOneBotApi, MessageType
 from bridge.onebot import permissions
 from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
 from post.decorators import async_coroutine, AsyncCoroutineFuncContext
 from mybot.models import (
-    UserProfile as Profile, AbstractOneBotPluginConfig,
+    UserProfile as Profile, AbstractOneBotPluginConfig, BaseOneBotEventHandler
 )
 from mybot.manager import OneBotPrivateMessageSession
 from mybot.onebot.apis import get_session
@@ -102,7 +102,7 @@ def msg_err_verify_hint(id, name):
     return plugin_config.MSG_ERR_VERIFY_HINT.format(id, '*' * (len(name) - 1) + name[-1])
 
 
-class OneBotEventHandler(AbstractOneBotEventHandler):
+class OneBotEventHandler(BaseOneBotEventHandler):
     cfg: PluginConfig
     ysu_check_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*\[CQ:at,(.*?)\]\s*')
     ysu_check_add_reg_pattern = re.compile(r'^\s*(?:ysu_check|ysucheck|yck|ycheck)\s*add\s*$')

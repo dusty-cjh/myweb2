@@ -9,5 +9,5 @@ tests/
 **/.pytest_cache
 **/log
 **/logs
-deploy/go-cqhttp/data
+deploy/go-cqhttp/
 env

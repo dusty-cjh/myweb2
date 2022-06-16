@@ -6,10 +6,10 @@ from asgiref.sync import sync_to_async as s2a
 from django.db.utils import OperationalError
 from django.core.cache import cache
 from bridge.onebot import (
-    OneBotEvent, CQCode, AsyncOneBotApi, AbstractOneBotEventHandler, OneBotCmdMixin, Role, PostType, RequestType,
+    OneBotEvent, CQCode, AsyncOneBotApi, OneBotCmdMixin, Role, PostType,
 )
 from common import utils
-from mybot.models import OneBotEventTab
+from mybot.models import OneBotEventTab, BaseOneBotEventHandler
 from mybot import event_loop
 from .settings import PluginConfig, CacheKey
 
@@ -22,12 +22,12 @@ MSG_ERR_INTERNAL_SERVER_ERROR = '处理出错！请重试'
 PLUGIN_NAME = '基本命令'
 
 
-class OneBotEventHandler(AbstractOneBotEventHandler, OneBotCmdMixin):
+class OneBotEventHandler(BaseOneBotEventHandler, OneBotCmdMixin):
     cfg: PluginConfig
 
     async def should_check(self, event: OneBotEvent, *args, **kwargs):
         # auto_approve
-        if event.post_type == PostType.REQUEST:
+        if event.post_type in (PostType.REQUEST, PostType.META_EVENT):
             return True
 
     async def event_message_private(self, event: OneBotEvent, *args, **kwargs):

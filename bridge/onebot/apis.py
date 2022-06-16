@@ -10,28 +10,52 @@ from django.utils.html import escape
 from common.utils import ErrCode
 from . import helper, serializers
 from .settings import ONE_BOT
+from .models import AbstractOneBotApiConfig
 
 
-class AsyncOneBotApi:
+class OneBotApiOptions:
+    max_retry: int = ONE_BOT.get('max_retry', 1)
+    fixed_values: dict = None
+    timeout: float = ONE_BOT['timeout']
+    host: str = ONE_BOT['host']
+    access_token: str = ONE_BOT['access_token']
+    cache_timeout: float = None
 
-    class Options:
-        max_retry: int = ONE_BOT.get('max_retry', 1)
-        fixed_values: dict = None
-        timeout: float = ONE_BOT['timeout']
-        host: str = ONE_BOT['host']
-        access_token: str = ONE_BOT['access_token']
-        cache_timeout: float = None
+    def copy(self):
+        options = self.__class__()
+        options.__dict__ = self.__dict__.copy()
+        return options
 
-        def copy(self):
-            options = self.__class__()
-            options.__dict__ = self.__dict__.copy()
-            return options
+    @classmethod
+    def from_api_config(cls, config: AbstractOneBotApiConfig):
+        options = cls()
 
-    def __init__(self, options=None):
-        if options is None:
-            options = self.__class__.Options()
+        # fetch field values from model obj
+        for field in config._meta.fields:
+            field_name = field.name
+            if hasattr(options, field_name):
+                setattr(options, field_name, getattr(config, field_name))
+
+        # set special fields
+        options.host = f'{config.http_schema}://{config.host}:{config.port}/'
+
+        # return
+        return options
+
+
+class _BaseApi:
+    options = OneBotApiOptions
+
+    def __init__(self, options: OneBotApiOptions = None, api_config: AbstractOneBotApiConfig = None):
+        if api_config is not None:
+            options = OneBotApiOptions.from_api_config(api_config)
+        elif options is None:
+            options = OneBotApiOptions()
+
         self.options = options
 
+
+class AsyncOneBotApi(_BaseApi):
     async def _get_response(self, url: str, **kwargs):
         # global
         ret, err = None, None
@@ -183,7 +207,7 @@ class AsyncOneBotApi:
         return await self._get_response('set_group_add_request', **params)
 
 
-class OneBotApi:
+class OneBotApi(_BaseApi):
     # api hint
     send_group_msg: typing.Callable
     send_msg: typing.Callable
@@ -194,24 +218,6 @@ class OneBotApi:
     set_group_anonymous_ban: typing.Callable
     get_group_info: typing.Callable
     get_group_list: typing.Callable
-
-    class Options:
-        max_retry: int = ONE_BOT.get('max_retry')
-        fixed_values: dict = None
-        timeout: float = ONE_BOT['timeout']
-        host: str = ONE_BOT['host']
-        access_token: str = ONE_BOT['access_token']
-        cache_timeout: float = None
-
-        def copy(self):
-            options = self.__class__()
-            options.__dict__ = self.__dict__.copy()
-            return options
-
-    def __init__(self, options=None):
-        if options is None:
-            options = self.__class__.Options()
-        self.options = options
 
     def _get_response(self, url: str, **kwargs):
         # global
