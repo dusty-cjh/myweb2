@@ -106,10 +106,16 @@ class AsyncCoroutineFunc:
         ret = await self.func(*args, **kwargs)
         return ret
 
-    def get_job_creating_params(self, *args, max_retry=None, max_lifetime=None, **kwargs):
+    def get_job_creating_params(self, *args, max_retry=None, max_lifetime=None, delay=None, **kwargs):
         now = utils.get_datetime_now()
+        mtime = now
         max_retry = max_retry or self.max_retry
         max_lifetime = max_lifetime or self.max_lifetime
+        if delay is not None:
+            if isinstance(delay, int):
+                delay = timedelta(seconds=delay)
+            assert isinstance(delay, timedelta)
+            mtime = now + delay  # to decide when time the job will be executed
 
         params = {
             'args': args,
@@ -122,12 +128,19 @@ class AsyncCoroutineFunc:
             max_retry=max_retry,
             max_lifetime=max_lifetime,
             expire_time=now + timedelta(seconds=max_lifetime),
-            mtime=now,
+            mtime=mtime,
         )
         return ret
 
-    async def add_job(self, *args, max_retry=None, max_lifetime=None, **kwargs) -> AsyncFuncJob:
-        params = self.get_job_creating_params(*args, max_retry=max_retry, max_lifetime=max_lifetime, **kwargs)
+    # add_job
+    # params:
+    #   delay[int,timedelta]: decide how long time to delay before executing job
+    async def add_job(self, *args, max_retry=None, max_lifetime=None, delay=None, **kwargs) -> AsyncFuncJob:
+        params = self.get_job_creating_params(
+            *args,
+            max_retry=max_retry, max_lifetime=max_lifetime, delay=delay,
+            **kwargs,
+        )
         return await s2a(AsyncFuncJob.objects.create)(**params)
 
 

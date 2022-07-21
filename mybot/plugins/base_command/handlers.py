@@ -26,9 +26,8 @@ class OneBotEventHandler(BaseOneBotEventHandler, OneBotCmdMixin):
     cfg: PluginConfig
 
     async def should_check(self, event: OneBotEvent, *args, **kwargs):
-        # auto_approve
-        if event.post_type in (PostType.REQUEST, PostType.META_EVENT):
-            return True
+        # should pass by all the events to base command
+        return True
 
     async def event_message_private(self, event: OneBotEvent, *args, **kwargs):
         # save all private message to DB
@@ -38,6 +37,13 @@ class OneBotEventHandler(BaseOneBotEventHandler, OneBotCmdMixin):
             self.log.error('save message to DB failed, err={}, msg={}', e, event)
 
         return await super().event_message_private(event, *args, **kwargs)
+
+    async def event_message_private_friend(self, event: OneBotEvent, *args, **kwargs):
+        if event.user_id == event.self_id:
+            return
+
+        if self.cfg.MESSAGE_AUTO_REPLY:
+            await self.api.send_private_msg(self.cfg.MESSAGE_AUTO_REPLY, event.user_id)
 
     async def event_message_sent(self, event: OneBotEvent, *args, **kwargs):
         # save all self sent message to DB

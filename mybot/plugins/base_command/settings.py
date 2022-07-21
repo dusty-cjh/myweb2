@@ -5,6 +5,13 @@ from common.utils import serializer
 from mybot.models import AbstractOneBotPluginConfig
 
 
+def get_text_field(help_text=None, widget=forms.Textarea(attrs=dict(cols=80))):
+    class TextField(forms.CharField):
+        nonlocal help_text, widget
+
+    return TextField
+
+
 class PluginConfig(AbstractOneBotPluginConfig):
     name = serializer.CharField(default='base_command')
     verbose_name = serializer.CharField(default='基础命令')
@@ -27,6 +34,12 @@ class PluginConfig(AbstractOneBotPluginConfig):
     NEW_FRIEND_GREETING = serializer.CharField(
         verbose_name='new-friend greeting',
         default='',
+    )
+
+    # noti message
+    MESSAGE_AUTO_REPLY = serializer.CharField(
+        verbose_name=_('noti: auto-reply-while-friend-message'),
+        default=_(''),
     )
 
 

@@ -3,6 +3,7 @@ from django.contrib import admin
 from django import forms
 from django.utils.translation import gettext as _
 from bridge.onebot.django_extension import OnebotGroupMultiChoiceField
+from bridge.onebot.event import get_event_name
 from .models import UserProfile, PluginConfigs, OneBotEventTab, OneBotApiConfig
 
 
@@ -89,7 +90,14 @@ class PluginConfigsAdmin(admin.ModelAdmin):
 
 @admin.register(OneBotEventTab)
 class OneBotEventTabAdmin(admin.ModelAdmin):
-    list_display = 'message_id post_type message_type sub_type group_id user_id anonymous time'.split()
+    list_display = 'message_id field_event_name self_id user_id anonymous time'.split()
+
+    def field_event_name(self, obj: OneBotEventTab) -> str:
+        ret = get_event_name(obj)
+        if obj.group_id:
+            ret += f'.{obj.group_id}'
+        return ret
+    field_event_name.short_description = _('event name')
 
 
 @admin.register(OneBotApiConfig)

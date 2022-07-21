@@ -313,6 +313,7 @@ class AsyncFuncJob(models.Model):
         queryset = cls.objects.filter(
             models.Q(
                 status=cls.STATUS_PENDING,
+                mtime__lte=now,
             ) |
             models.Q(
                 status=cls.STATUS_RUNNING,
@@ -325,19 +326,25 @@ class AsyncFuncJob(models.Model):
             )
         )
 
-        return queryset
+        return queryset[:limit]
 
     @classmethod
     def create(cls, func: Callable, params: dict, job_type=None, expire_time=None,
-               max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME):
+               max_retry=MAX_RETRY, max_lifetime=MAX_LIFETIME, delay=None):
         # set default value
         now = utils.get_datetime_now()
+        mtime = now
         if not job_type:
             job_type = cls.JOB_TYPE_IS_COROUTINE
         if not expire_time:
             expire_time = now + timedelta(seconds=max_lifetime)
         if isinstance(params, dict):
             params = json.dumps(params)
+        if delay is not None:
+            if isinstance(delay, int):
+                delay = timedelta(seconds=delay)
+            assert isinstance(delay, timedelta)
+            mtime = now + delay  # to decide when time the job will be executed
 
         # create
         import_name = get_func_import_name(func)
@@ -348,7 +355,7 @@ class AsyncFuncJob(models.Model):
             max_retry=max_retry,
             max_lifetime=max_lifetime,
             expire_time=expire_time,
-            mtime=now,
+            mtime=mtime,
         )
         return obj
 
