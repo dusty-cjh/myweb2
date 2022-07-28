@@ -1,0 +1,7 @@
+{% extends "account/email/base_message.txt" %}
+{% load account %}
+{% load i18n %}
+
+{% block content %}{% autoescape off %}{% user_display user as user_display %}{% blocktrans with site_name=current_site.name site_domain=current_site.domain %}用户 {{ user_display }} 正在使用该邮箱用于 {{ site_domain }} 的注册。
+
+<a href="{{ activate_url }}">点击链接即可激活账户</a>{% endblocktrans %}{% endautoescape %}{% endblock %}

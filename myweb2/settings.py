@@ -53,11 +53,12 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'django_ckeditor_5',
     'django_filters',
-    'django_celery_results',
-    'django_celery_beat',
+    # 'django_celery_results',
+    # 'django_celery_beat',
     'django_prometheus',
+    'widget_tweaks',
 ]
-SITE_ID = 1
+SITE_ID = 2 if ENV == 'live' else 1
 
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
@@ -89,6 +90,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+
+                # `allauth` needs this from django
+                'django.template.context_processors.request',
             ],
         },
     },
@@ -259,7 +263,35 @@ MEDIA_ROOT = MEDIA_ROOT[ENV]
 RESOURCE_URL = os.path.join(STATIC_URL, 'resource')
 RESOURCE_ROOT = os.path.join(STATIC_ROOT, 'resource')
 
-ADMINS = [ ('Jiaohao.chen', 'jiahao.chen@seamoney.com'), ('dusty-cjh', 'dusty-cjh@qq.com'), ]
+ADMINS = [('Jiaohao.chen', 'jiahao.chen@seamoney.com'), ('dusty-cjh', 'dusty-cjh@qq.com'), ]
+
+# mail alert config
+EMAIL_CONFIG = {
+    'sina': {
+        'host': 'smtp.sina.cn',
+        'port': 587 if ENV == 'live' else 25,
+        'user': 'hdcjh_xyz@sina.cn',
+        'password': '04a167768fbad283',
+        'use_tls': False
+    },
+    'qq': {
+        'host': 'smtp.qq.com',
+        'port': 587 if ENV == 'live' else 25,
+        'user': 'dusty-cjh@qq.com',
+        'password': 'aparzwxdjqgedhcc',
+        'use_tls': True
+    },
+}
+EMAIL_CONFIG = EMAIL_CONFIG['sina']
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = EMAIL_CONFIG['host']
+EMAIL_PORT = EMAIL_CONFIG['port']
+EMAIL_HOST_USER = EMAIL_CONFIG['user']
+EMAIL_HOST_PASSWORD = EMAIL_CONFIG['password']
+EMAIL_USE_TLS = EMAIL_CONFIG['use_tls']
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 
 # 微信号 小蛮三
 WECHAT = {
@@ -447,3 +479,47 @@ CELERY_TASK_TIME_LIMIT = 3600
 # CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'django-db'
 CELERY_CACHE_BACKEND = 'default'
+
+# all auth
+AUTHENTICATION_BACKENDS = [
+    # Needed to login by username in Django admin, regardless of `allauth`
+    'django.contrib.auth.backends.ModelBackend',
+
+    # `allauth` specific authentication methods, such as login by e-mail
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+INSTALLED_APPS += [
+
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    # # ... include the providers you want to enable:
+    # 'allauth.socialaccount.providers.apple',
+    # 'allauth.socialaccount.providers.baidu',
+    # 'allauth.socialaccount.providers.facebook',
+    # 'allauth.socialaccount.providers.figma',
+    'allauth.socialaccount.providers.github',
+    # 'allauth.socialaccount.providers.google',
+    # 'allauth.socialaccount.providers.twitter',
+    # 'allauth.socialaccount.providers.weibo',
+    # 'allauth.socialaccount.providers.weixin',
+    # 'allauth.socialaccount.providers.feishu',
+]
+
+# Provider specific settings
+SOCIALACCOUNT_PROVIDERS = {
+    'github': {
+        # For each OAuth based provider, either add a ``SocialApp``
+        # (``socialaccount`` app) containing the required client
+        # credentials, or list them here:
+        'APP': {
+            'client_id': '4831c48c92f9e6db4b59',
+            'secret': 'e31c8a4c33b4df3298cd9b4b0a630ac64b48e556',
+            'key': ''
+        },
+        "VERIFIED_EMAIL": True,
+    }
+}
+
+LOGIN_REDIRECT_URL = '/'

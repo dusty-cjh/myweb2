@@ -25,3 +25,5 @@ hiredis
 django-redis
 django-prometheus
 django
+django-allauth
+django-widget-tweaks
