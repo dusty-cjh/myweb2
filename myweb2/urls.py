@@ -14,6 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.contrib.sitemaps.views import sitemap
 from django.urls import path, include
 from django.conf.urls.static import static
 from django.conf import settings
@@ -30,6 +31,7 @@ urlpatterns = [
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
     path('prometheus/', include('django_prometheus.urls')),
+    path('comments/', include('django_comments.urls')),
 
     # official doc: https://django-allauth.readthedocs.io/en/latest/configuration.html
     # refer2: https://mp.weixin.qq.com/s/ZUzI8gcZAqwbERuLdBQAwQ
@@ -64,3 +66,17 @@ urlpatterns += [
     path('api/', include(router.urls)),
     path('api/doc/', include_docs_urls(title='API Doc')),
 ]
+
+
+# for debug only
+if settings.DEBUG:
+    urlpatterns.append(path('__debug__/', include('debug_toolbar.urls')))
+
+# add sitemap
+from .sitemaps import IndexViewSitemap
+sitemaps = {
+    # 'post': GenericSitemap,
+    # 'shop': GenericSitemap,
+    'static': IndexViewSitemap,
+}
+urlpatterns.append(path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'))

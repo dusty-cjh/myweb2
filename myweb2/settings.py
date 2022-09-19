@@ -32,6 +32,7 @@ USE_X_FORWARDED_HOST = True
 # Application definition
 
 INSTALLED_APPS = [
+    # 'simpleui',
     'django.contrib.admin',
     'django.contrib.contenttypes',
     'django.contrib.auth',
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.flatpages',
+    'django.contrib.sitemaps',
     'wechat.apps.WechatConfig',
     'post.apps.PostConfig',
     'config.apps.ConfigConfig',
@@ -48,6 +50,8 @@ INSTALLED_APPS = [
     'shop.apps.ShopConfig',
     'mybot.apps.MybotConfig',
 
+    'debug_toolbar',
+    'django_comments',
     'rest_framework',
     'ckeditor',
     'ckeditor_uploader',
@@ -73,6 +77,7 @@ MIDDLEWARE = [
     'common.middlewares.AccessLogMiddleware',
     'post.middleware.UserIDMiddleware',
     'config.middlewares.CorsMiddleWare',    # CORS
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     'django_prometheus.middleware.PrometheusAfterMiddleware',
 ]
 
@@ -233,7 +238,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CKEDITOR_UPLOAD_PATH = 'ckimage/'
 
 ## simple ui
-# SIMPLEUI_DEFAULT_THEME = 'admin.lte.css'
+SIMPLEUI_DEFAULT_THEME = 'admin.lte.css'
 
 # rest framework
 REST_FRAMEWORK = {
@@ -523,3 +528,24 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 
 LOGIN_REDIRECT_URL = '/'
+
+INTERNAL_IPS = [
+    # '127.0.0.1',
+]
+
+DEBUG_TOOLBAR_PANELS = [
+    'debug_toolbar.panels.history.HistoryPanel',
+    'debug_toolbar.panels.versions.VersionsPanel',
+    'debug_toolbar.panels.timer.TimerPanel',
+    'debug_toolbar.panels.settings.SettingsPanel',
+    'debug_toolbar.panels.headers.HeadersPanel',
+    'debug_toolbar.panels.request.RequestPanel',
+    'debug_toolbar.panels.sql.SQLPanel',
+    'debug_toolbar.panels.staticfiles.StaticFilesPanel',
+    'debug_toolbar.panels.templates.TemplatesPanel',
+    'debug_toolbar.panels.cache.CachePanel',
+    'debug_toolbar.panels.signals.SignalsPanel',
+    'debug_toolbar.panels.logging.LoggingPanel',
+    'debug_toolbar.panels.redirects.RedirectsPanel',
+    'debug_toolbar.panels.profiling.ProfilingPanel',
+]

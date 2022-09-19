@@ -45,3 +45,4 @@ PYTHON_INTERPRETER_SHUTDOWN = (
 )
 PYTHON_INTERPRETER_SHUTDOWN = [repr(x) for x in PYTHON_INTERPRETER_SHUTDOWN]
 
+FFMPEG_CREATE_THUMBNAIL = lambda filename, text='Thumbnail', w=640, h=280: f"ffmpeg -f lavfi -i color=c=0xaaaaaa:size={w}x{h} -vf 'fps=1,drawtext=text={text}:fontsize=62:fontcolor=white:x=(w-tw)/2:y=(h-th)/2:box=1:boxcolor=black@0.3:boxborderw=10' -y -t 1 {filename}"

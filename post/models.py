@@ -8,6 +8,7 @@ from typing import Callable
 from asgiref.sync import sync_to_async as s2a
 from django.db import models
 from django.conf import settings
+from django.db.models.functions import Concat
 from common import utils
 
 
@@ -161,10 +162,10 @@ class AsyncFuncJob(models.Model):
             return json.loads(self.result)
 
     def set_params(self, data: dict):
-        self.params = json.dumps(data)
+        self.params = json.dumps(data, indent=2, ensure_ascii=False)
 
     def set_result(self, data: dict, status=5):
-        self.result = json.dumps(data)
+        self.result = json.dumps(data, ensure_ascii=False, indent=2)
         now = utils.get_datetime_now()
         updated = self.__class__.objects.filter(id=self.id, mtime=self.mtime).update(
             result=self.result,
@@ -209,6 +210,10 @@ class AsyncFuncJob(models.Model):
             retries=models.F('retries') + 1,
             status=self.STATUS_RUNNING,
             expire_time=now + timedelta(seconds=self.max_lifetime),
+            result=Concat(
+                models.Value('{"trace": "async_job.%d.' % self.id),
+                models.F('retries'),
+                models.Value('"}')),
         )
         self.mtime = now
         self.retries += 1

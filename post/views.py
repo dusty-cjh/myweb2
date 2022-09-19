@@ -34,7 +34,3 @@ def wx_verify(request):
 
 class ArticleDetailView(DetailView):
     queryset = Article.objects.all()
-
-
-def goto_test(request, *args, **kwargs):
-    return HttpResponse(b'got goto request')

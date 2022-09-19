@@ -27,3 +27,7 @@ django-prometheus
 django
 django-allauth
 django-widget-tweaks
+
+# for debug
+djdt_flamegraph
+django-debug-toolbar

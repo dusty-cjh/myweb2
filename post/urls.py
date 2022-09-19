@@ -12,8 +12,6 @@ urlpatterns = [
     path('post/<int:pk>', views.PostDetailView.as_view(), name='post'),
     path('article/<int:pk>', views.ArticleDetailView.as_view(), name='article'),
 
-    path('goto/', views.goto_test, name='goto'),
-
     path('MP_verify_cnuhJDCblRVDP7Vf.txt', views.wx_verify, name='wx-verify'),
 ]
 

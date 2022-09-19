@@ -9,9 +9,7 @@
   <div class="container my-5" id="app">
     <div v-if="loading">
       <h3>
-        <div class="spinner-border" role="status">
-          <span class="sr-only">Loading...</span>
-        </div>
+        <div class="spinner-border" role="status"></div>
         loading ...
       </h3>
     </div>
@@ -34,7 +32,7 @@
               <small class="text-muted">[[ obj.created_time.toLocaleDateString() ]]</small>
             </p>
           </div>
-          <a :href="obj.url" class="stretched-link" target="_blank" @click="add_pv(obj.id)"></a>
+          <a :href="obj.url" class="stretched-link" @click="add_pv(obj.id)"></a>
         </div>
       </div>
     </div>

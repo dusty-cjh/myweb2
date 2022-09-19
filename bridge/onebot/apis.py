@@ -194,6 +194,9 @@ class AsyncOneBotApi(_BaseApi):
     async def get_group_member_info(self, group_id: int, user_id: int, no_cache=False):
         return await self._get_response('get_group_member_info', group_id=group_id, user_id=user_id, no_cache=no_cache)
 
+    async def get_group_member_list(self, group_id: int, no_cache=False):
+        return await self._get_response('get_group_member_list', group_id=group_id, no_cache=no_cache)
+
     async def set_friend_add_request(self, flag: str, approve: str = True, remark: str = None):
         params = dict(flag=flag, approve=approve)
         if remark:
